@@ -1,0 +1,87 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ([2.69])
+AC_INIT(connman-json, 0.1)
+AC_CONFIG_SRCDIR([main.c])
+AC_CONFIG_AUX_DIR([build-aux])
+
+AC_CONFIG_MACRO_DIR([m4])
+AM_INIT_AUTOMAKE([foreign -Wall])
+
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+AM_MAINTAINER_MODE
+
+PKG_PROG_PKG_CONFIG
+
+AC_SUBST(abs_top_srcdir)
+AC_SUBST(abs_top_builddir)
+
+AC_LANG_C
+
+AC_PROG_CC
+AC_PROG_CC_C99
+AM_PROG_CC_C_O
+
+AC_ARG_ENABLE(optimization, AC_HELP_STRING([--disable-optimization],
+			[disable code optimization through compiler]), [
+	if (test "${enableval}" = "no"); then
+		CFLAGS="$CFLAGS -O0 -U_FORTIFY_SOURCE"
+	fi
+])
+
+AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
+			[enable compiling with debugging information]), [
+	if (test "${enableval}" = "yes" &&
+				test "${ac_cv_prog_cc_g}" = "yes"); then
+		CFLAGS="$CFLAGS -g"
+	fi
+])
+
+
+PKG_CHECK_MODULES([json], [json-c],,
+	[PKG_CHECK_MODULES([json], [json],,
+		[PKG_CHECK_MODULES([json], [json0],,
+			[AC_MSG_WARN([No pkg-config for json-c (aka libjson0, libjson)])])
+		])
+	])
+
+AC_CHECK_LIB([json], [json_object_new_string],,
+	[AC_CHECK_LIB([json-c], [json_object_new_string],,
+		[AC_MSG_ERROR([Cannot find required library: libjson-c (aka libjson0, libjson)])])
+	])
+
+PKG_CHECK_MODULES(DBUS, dbus-1 >= 1.4, dummy=yes,
+				AC_MSG_ERROR(D-Bus >= 1.4 is required))
+AC_SUBST(DBUS_CFLAGS)
+AC_SUBST(DBUS_LIBS)
+
+AC_ARG_WITH(dbusconfdir, AC_HELP_STRING([--with-dbusconfdir=PATH],
+	[path to D-Bus config directory]), [path_dbusconf=${withval}],
+		[path_dbusconf="`$PKG_CONFIG --variable=sysconfdir dbus-1`"])
+if (test -z "${path_dbusconf}"); then
+	DBUS_CONFDIR="${sysconfdir}/dbus-1/system.d"
+else
+	DBUS_CONFDIR="${path_dbusconf}/dbus-1/system.d"
+fi
+AC_SUBST(DBUS_CONFDIR)
+
+AC_ARG_WITH(dbusdatadir, AC_HELP_STRING([--with-dbusdatadir=PATH],
+	[path to D-Bus data directory]), [path_dbusdata=${withval}],
+		[path_dbusdata="`$PKG_CONFIG --variable=datadir dbus-1`"])
+if (test -z "${path_dbusdata}"); then
+	DBUS_DATADIR="${datadir}/dbus-1/system-services"
+else
+	DBUS_DATADIR="${path_dbusdata}/dbus-1/system-services"
+fi
+AC_SUBST(DBUS_DATADIR)
+
+AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
+AC_CHECK_HEADER_STDBOOL
+AC_TYPE_INT32_T
+
+AC_FUNC_MALLOC
+AC_CHECK_FUNCS([strerror strndup strrchr])
+
+AC_OUTPUT(Makefile)

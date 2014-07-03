@@ -1,0 +1,10 @@
+*.o
+aclocal.m4
+autom4te.cache/
+config.log
+configure
+config.status
+Makefile
+Makefile.in
+connman_json
+.deps/
