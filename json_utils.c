@@ -1,0 +1,124 @@
+/*
+ *  connman-json-client
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *
+ */
+
+#include "json_utils.h"
+
+_Bool __json_type_disatch(struct json_object *jobj,
+		struct json_object *jtrusted);
+
+static _Bool json_match_string(struct json_object *jobj,
+		struct json_object *jtrusted)
+{
+	_Bool res = false;
+	int regexp_err, regexp_match;
+	regex_t preg;
+
+	regexp_err = regcomp(&preg, json_object_get_string(jtrusted),
+			REG_NOSUB | REG_EXTENDED);
+	assert(regexp_err == 0);
+	regexp_match = regexec(&preg, json_object_get_string(jobj), 0, NULL, 0);
+	regfree(&preg);
+
+	if (regexp_match == 0)
+		res = true;
+	
+	return res;
+}
+
+static _Bool json_match_object(struct json_object *jobj,
+		struct json_object *jtrusted)
+{
+	_Bool res = true;
+	struct json_object *tmp_trusted;
+	json_bool key_is_trusted;
+	
+	json_object_object_foreach(jobj, key, val) {
+		key_is_trusted = json_object_object_get_ex(jtrusted, key,
+				&tmp_trusted);
+		
+		if (key_is_trusted == FALSE)
+			return false;
+
+		res = __json_type_dispatch(val, tmp_trusted);
+
+		if (res == false)
+			return res;
+	}
+
+	return res;
+}
+
+static _Bool json_match_array(struct json_object *jobj,
+		struct json_object *jtrusted)
+{
+	_Bool res = true;
+	int array_len, i;
+	struct json_object *elem_trusted;
+
+	array_len = json_object_array_length(jobj);
+
+	if (array_len <= 0)
+		return false;
+	
+	elem_trusted = json_object_array_get_idx(jtrusted, 0);
+	assert(elem_trusted);
+	assert(json_object_get_type(elem_trusted) != json_type_null);
+
+	for (i = 0; i < array_len && res == true; i++) {
+		res = __json_type_dispatch(
+				json_object_array_get_idx(jobj, i),
+				elem_trusted);
+	}
+
+	return res;
+}
+
+_Bool __json_type_dispatch(struct json_object *jobj,
+		struct json_object *jtrusted)
+{
+	enum json_type type, type_trusted;
+	_Bool res;
+
+	type = json_object_get_type(jobj);
+	type_trusted = json_object_get_type(jtrusted);
+
+	if (type != type_trusted)
+		return false;
+
+	switch (type_trusted) {
+
+		case json_type_string:
+			res = json_match_string(jobj, jtrusted);
+			break;
+
+		case json_type_object:
+			res = json_match_object(jobj, jtrusted);
+			break;
+
+		case json_type_array:
+			res = json_match_array(jobj, jtrusted);
+			break;
+
+		default:
+			res = false;
+			break;
+	}
+
+	return res;
+}

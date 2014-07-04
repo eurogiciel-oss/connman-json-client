@@ -8,6 +8,15 @@ connman_json_SOURCES = dbus_helpers.h dbus_helpers.c \
 				  agent.h agent.c \
 				  dbus_json.h dbus_json.c \
 				  loop.h loop.c \
+				  json_utils.h json_utils.c \
 				  main.c
 
+#engine.h engine.c
+
 connman_json_LDADD = @DBUS_LIBS@ -ldl -ljson -lncurses
+
+if TEST_JSON_UTILS
+noinst_PROGRAMS += test_json_utils
+
+test_json_utils_SOURCES = test_json_utils.c json_utils.h json_utils.c
+endif
