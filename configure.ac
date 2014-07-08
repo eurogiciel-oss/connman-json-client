@@ -63,6 +63,19 @@ AC_ARG_ENABLE(testjsonutils,
 AM_CONDITIONAL(TEST_JSON_UTILS, test "${enable_testjsonutils}" = "yes")
 
 
+AC_CHECK_HEADER(ncurses/ncurses.h, HAVE_NCURSES_H=1)
+AC_CHECK_LIB(ncurses, initscr, HAVE_LIBNCURSES=1)
+AC_CHECK_LIB(tinfo, cbreak, [LIBS="-ltinfo $LIBS"])
+if test -n "$HAVE_NCURSES_H" -a -n "$HAVE_LIBNCURSES";  then
+LIBS="-lncurses $LIBS"
+else
+PKG_CHECK_MODULES(NCURSESW, ncurses, [
+		LIBS="$NCURSES_LIBS $LIBS"
+		CFLAGS="$NCURSES_CFLAGS $CFLAGS"], [
+		echo -e "Error: ncurses is required." exit 1])
+fi
+
+
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
 AC_CHECK_HEADER_STDBOOL
 AC_TYPE_INT32_T

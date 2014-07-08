@@ -21,7 +21,8 @@
 
 #include "loop.h"
 
-static DBusConnection *dbusconnection = 0;
+extern DBusConnection *connection;
+extern void __ncurses_action(void);
 static int stop_loop = 0;
 static DBusWatch *watcheds[WATCHEDS_MAX_COUNT];
 static int watcheds_count;
@@ -50,18 +51,16 @@ static void remove_watch(DBusWatch *watch, void *data)
 	}
 }
 
-void loop_init(DBusConnection *connection)
+void loop_init(void)
 {
-	dbus_connection_ref(connection);
-	dbusconnection = connection;
 	dbus_connection_set_watch_functions(connection, add_watch, remove_watch,
 			NULL, NULL, NULL);
 }
 
 void loop_terminate(void)
 {
-	dbus_connection_unref(dbusconnection);
-	dbusconnection = 0;
+	dbus_connection_unref(connection);
+	connection = 0;
 	watcheds_count = 0;
 }
 
@@ -77,7 +76,6 @@ void loop_run(_Bool poll_stdin)
 	int nfds, i, status, processdbus;
 	unsigned int flags;
 	short revents, cond;
-	char buf;
 
 	while (!stop_loop) {
 
@@ -144,16 +142,13 @@ void loop_run(_Bool poll_stdin)
 		}
 
 		if (processdbus) {
-			while (dbus_connection_dispatch(dbusconnection) ==
+			while (dbus_connection_dispatch(connection) ==
 					DBUS_DISPATCH_DATA_REMAINS);
 		}
 		
-		if (poll_stdin && fds[nfds].revents & POLLIN) {
-			printf("\nPOLLIN on stdin\n");
-			
-			if (read(fds[nfds].fd, &buf, 1) > 0)
-				printf("got : %c (%d)\n", buf, buf);
-		}
+		if (poll_stdin && fds[nfds].revents & POLLIN)
+			__ncurses_action();
+
 	} // end while
 	stop_loop = 0;
 }

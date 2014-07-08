@@ -27,15 +27,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-//TODO remove
-#include <stdio.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 _Bool __json_type_dispatch(struct json_object *jobj,
 		struct json_object *jtrusted);
+
+const char* __json_get_command_str(struct json_object *jobj);
 
 #ifdef __cplusplus
 }

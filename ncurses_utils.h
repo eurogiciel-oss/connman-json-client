@@ -1,6 +1,9 @@
 /*
  *  connman-json-client
  *
+ *  This file is meant for testing.
+ *  A ncurses mode is implemented, just uncomment the code.
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -17,32 +20,25 @@
  *
  */
 
-#ifndef __CONNMAN_ENGINE_H
-#define __CONNMAN_ENGINE_H
+#ifndef __CONNMAN_NCURSES_UTILS_H
+#define __CONNMAN_NCURSES_UTILS_H
 
-#include "commands.h"
-#include "json_utils.h"
-#include "loop.h"
+#include <stdlib.h>
+#include <ncurses/form.h>
+#include <ncurses/menu.h>
 
-#define ENGINE_KEY_COMMAND "command"
-#define ENGINE_KEY_CMD_DATA "cmd_data"
+#define NCURSES_MAX_FIELD_LEN 30
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-DBusConnection *connection;
+void __ncurses_better_field_free(FIELD *label, FIELD *field);
 
-void (*commands_callback)(struct json_object *data, json_bool is_error);
-void (*commands_signal)(struct json_object *data);
-void (*agent_callback)(struct json_object *data, struct agent_data *request);
-void (*agent_error_callback)(struct json_object *data, struct agent_data *request);
+void __ncurses_better_field(FIELD *label, FIELD *field, const char *label_txt,
+		const char *field_txt);
 
-extern void (*engine_callback)(int status, struct json_object *jobj);
-
-int __engine_query(struct json_object *jobj);
-
-int __engine_init(void);
+void __ncurses_print_info_in_footer(_Bool is_error, const char* msg);
 
 #ifdef __cplusplus
 }

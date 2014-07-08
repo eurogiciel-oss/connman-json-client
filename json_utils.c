@@ -19,9 +19,6 @@
 
 #include "json_utils.h"
 
-_Bool __json_type_disatch(struct json_object *jobj,
-		struct json_object *jtrusted);
-
 static _Bool json_match_string(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
@@ -121,4 +118,35 @@ _Bool __json_type_dispatch(struct json_object *jobj,
 	}
 
 	return res;
+}
+
+static const char* get_string_from_jobj(struct json_object *jobj)
+{
+	if (json_object_get_type(jobj) == json_type_string)
+		return json_object_get_string(jobj);
+	
+	return NULL;
+}
+
+static struct json_object* get_jobj_from_key(struct json_object *jobj,
+		const char *key_id)
+{
+	struct json_object *data;
+	json_object_object_get_ex(jobj, key_id, &data);
+
+	if (!data)
+		return NULL;
+	
+	return data;
+}
+
+const char* __json_get_command_str(struct json_object *jobj)
+{
+	struct json_object *cmd;
+	cmd = get_jobj_from_key(jobj, "command");
+
+	if (cmd)
+		return get_string_from_jobj(cmd);
+
+	return NULL;
 }

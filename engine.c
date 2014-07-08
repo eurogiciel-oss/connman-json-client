@@ -19,108 +19,231 @@
 
 #include "engine.h"
 
-struct client {
-	engine_callback cb;
-};
 
-static struct client *engine_clients[ENGINE_MAX_CLIENTS];
-static int first_engine_client_available_id = 0;
-static int clients_number = 0;
+extern void (*engine_callback)(int status, struct json_object *jobj);
 
-static _Bool check_id_in_bounds(int id) {
-	return id > 0 && id < ENGINE_MAX_CLIENTS;
+void (*commands_callback)(struct json_object *data, json_bool is_error) = NULL;
+void (*commands_signal)(struct json_object *data) = NULL;
+void (*agent_callback)(struct json_object *data, struct agent_data *request) = NULL;
+void (*agent_error_callback)(struct json_object *data, struct agent_data *request) = NULL;
+
+static enum {INIT_STATE, INIT_TECHNOLOGIES, INIT_OVER} init_status = 0;
+
+static struct json_object *state, *technologies, *home_page;
+
+void engine_commands_cb(struct json_object *data, json_bool is_error)
+{
+	switch (init_status) {
+		case INIT_STATE:
+			state = data;
+			break;
+		
+		case INIT_TECHNOLOGIES:
+			technologies = data;
+			break;
+
+		default:
+			engine_callback((is_error ? 1 : 0), data);
+			break;
+	}
+
+	if (init_status != INIT_OVER)
+		loop_quit();
+
+	//printf("[*] Got callback\n");
 }
 
-static void update_available_client_id(void) {
-	int i;
-
-	for (i = 0; i < ENGINE_MAX_CLIENTS && engine_clients[i]; i++) {}
-
-	if (i == ENGINE_MAX_CLIENTS)
-		first_engine_client_available_id = -1;
-	else
-		first_engine_client_available_id = i;
+void engine_commands_sig(struct json_object *data)
+{
+	engine_callback(12345, data);
 }
 
-int __engine_get(engine_callback cb) {
-	struct client *tmp;
-	int res;
+void engine_agent_cb(struct json_object *data, struct agent_data *request)
+{
+	engine_callback(-ENOSYS, NULL);
+}
 
-	if (!cb)
-		return -EINVAL;
+void engine_agent_error_cb(struct json_object *data, struct agent_data *request)
+{
+	engine_callback(-ENOSYS, NULL);
+}
 
-	if (first_engine_client_available_id < 0)
-		return -ENOMEM;
+/*
+ {
+ 	"command_name": cmd_name,
+	"data": { data }
+ }
+ */
+static struct json_object* coating(const char *cmd_name,
+		struct json_object *data)
+{
+	struct json_object *res = json_object_new_object();
 
-	tmp = malloc(sizeof(struct client));
-
-	if (!tmp)
-		return -ENOMEM;
-
-	engine_clients[first_engine_client_available_id] = tmp;
-	res = first_engine_client_available_id;
-	update_available_client_id();
-	clients_number++;
+	json_object_object_add(res, "command_name",
+			json_object_new_string(cmd_name));
+	json_object_object_add(res, "data", data);
 
 	return res;
 }
 
-int __engine_release(int id) {
-	
-	if (!check_id_in_bounds(id) || !engine_clients[id])
+static int get_state(struct json_object *jobj)
+{
+	return __cmd_state();
+}
+
+static int get_services(struct json_object *jobj)
+{
+	return __cmd_services();
+}
+
+static int get_technologies(struct json_object *jobj)
+{
+	return __cmd_technologies();
+}
+
+static void compose_home_page(void)
+{
+	home_page = json_object_new_object();
+	json_object_object_add(home_page, "state", state);
+	json_object_object_add(home_page, "technologies", technologies);
+}
+
+/*
+ {
+ 	"command_name": "get_home_page",
+	"data": {
+		"state": {
+			...
+		},
+		"technologies": {
+			...
+		}
+	}
+ }
+ */
+static int get_home_page(struct json_object *jobj)
+{
+	engine_callback(0, coating("get_home_page",
+				json_object_get(home_page)));
+	//printf("[*] callback sent\n");
+	return -EINPROGRESS;
+}
+
+static const struct {
+	const char *cmd;
+	int (*func)(struct json_object *jobj);
+	_Bool trusted_is_json_string;
+	union {
+		const char *trusted_str;
+		struct json_object *trusted_jobj;
+	} trusted;
+} cmd_table[] = {
+	{ "get_state", get_state, true, { "" } },
+	{ "get_services", get_services, true, { "" } },
+	{ "get_technologies", get_technologies, true, { "" } },
+	{ "get_home_page", get_home_page, true, { "" } },
+	{ NULL, }, // this is a sentinel
+};
+
+static int command_exist(const char *cmd)
+{
+	int res = -1, i;
+
+	for (i = 0; ; i++) {
+		if (cmd_table[i].cmd == NULL)
+			break;
+
+		if (strncmp(cmd_table[i].cmd, cmd, JSON_COMMANDS_STRING_SIZE_SMALL) == 0)
+			res = i;
+	}
+
+	return res;
+}
+
+static _Bool command_data_is_clean(struct json_object *jobj, int cmd_pos)
+{
+	struct json_object *jcmd_data;
+
+	if (cmd_table[cmd_pos].trusted_is_json_string)
+		jcmd_data = json_tokener_parse(cmd_table[cmd_pos].trusted.trusted_str);
+	else 
+		jcmd_data = cmd_table[cmd_pos].trusted.trusted_jobj;
+
+	return __json_type_dispatch(jobj, jcmd_data);
+}
+
+int __engine_query(struct json_object *jobj)
+{
+	const char *command_str = NULL;
+	int res, cmd_pos;
+	struct json_object *jcmd_data;
+
+	command_str = __json_get_command_str(jobj);
+
+	if (!command_str || (cmd_pos = command_exist(command_str)) < 0)
 		return -EINVAL;
+	
+	json_object_object_get_ex(jobj, ENGINE_KEY_CMD_DATA, &jcmd_data);
 
-	free(engine_clients[id]);
-	engine_clients[id] = NULL;
+	if (jcmd_data != NULL && !command_data_is_clean(jcmd_data, cmd_pos))
+		return -EINVAL;
+	
+	res = cmd_table[cmd_pos].func(jcmd_data);
+	json_object_put(jobj);
 
-	if (id < first_engine_client_available_id)
-		update_available_client_id();
+	return res;
+}
 
-	clients_number--;
+int __engine_init(void)
+{
+	DBusError dbus_err;
+	//struct json_object *jobj, *jarray;
+	int res = 0;
+
+	// Getting dbus connection
+	dbus_error_init(&dbus_err);
+	connection = dbus_bus_get(DBUS_BUS_SYSTEM, &dbus_err);
+
+	if (dbus_error_is_set(&dbus_err)) {
+		printf("\n[-] Error getting connection: %s\n", dbus_err.message);
+		dbus_error_free(&dbus_err);
+		return -1;
+	}
+
+	commands_callback = engine_commands_cb;
+	commands_signal = engine_commands_sig;
+	agent_callback = engine_agent_cb;
+	agent_error_callback = engine_agent_error_cb;
+
+	/*
+	jobj = json_object_new_object();
+	jarray = json_object_new_array();
+	json_object_array_add(jarray, json_object_new_string("Manager"));
+	json_object_object_add(jobj, "monitor_add", jarray);
+
+	if (__cmd_monitor(jobj) != -EINPROGRESS)
+		printf("[-] @__engine_init: Couldn't monitor Manager.\n");
+	
+	json_object_put(jobj);
+	*/
+	
+	// We need the loop to get callbacks to init our things
+	loop_init();
+	init_status = INIT_STATE;
+	res = get_state(NULL);
+
+	if (res != -EINPROGRESS)
+		return res;
+	
+	loop_run(false);
+	init_status = INIT_TECHNOLOGIES;
+
+	if ((res = get_technologies(NULL)) != -EINPROGRESS)
+		return res;
+	
+	loop_run(false);
+	init_status = INIT_OVER;
+	compose_home_page();
 
 	return 0;
-}
-
-static const char* get_string_from_jobj(struct json_object *jobj) {
-
-	if (json_object_get_type(jobj) == json_type_string)
-		return json_object_get_string(jobj);
-	
-	return NULL;
-}
-
-static struct json_object* get_jobj_from_key(struct json_object *jobj,
-		const char *key_id) {
-	struct json_object *data;
-
-	json_object_object_get_ex(jobj, key_id, &data);
-	if (!data)
-		return NULL;
-	
-	return data;
-}
-
-static const char* get_command_str(struct json_object *jobj) {
-	struct json_object *cmd;
-
-	cmd = get_jobj_from_key(jobj, ENGINE_KEY_COMMAND);
-	if (cmd)
-		return get_string_from_jobj(cmd);
-
-	return NULL;
-}
-
-int __engine_query(int id, struct json_object *jobj, void *user_data) {
-	const char *command_str = NULL;
-
-	if (!check_id_in_bounds(id) || !jobj)
-		return -EINVAL;
-
-	command_str = get_command_str(jobj);
-	if (!command_str)
-		return -EINVAL;
-
-
-
-	return -ENOSYS;
 }

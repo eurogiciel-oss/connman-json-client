@@ -187,8 +187,7 @@ void __connman_dbus_json_print_pretty(struct json_object *jobj)
 
 void __connman_dbus_json_print_pretty_curses(WINDOW *my_win, struct json_object *jobj)
 {
-        fprintf(stdout, "\n%s\n", json_object_to_json_string_ext(jobj,
-	JSON_C_TO_STRING_SPACED));
+	wprintw(my_win, json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_SPACED));
 }
 
 int __connman_json_to_dbus_dict(struct json_object *jobj,

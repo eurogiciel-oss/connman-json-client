@@ -9,14 +9,16 @@ connman_json_SOURCES = dbus_helpers.h dbus_helpers.c \
 				  dbus_json.h dbus_json.c \
 				  loop.h loop.c \
 				  json_utils.h json_utils.c \
+				  engine.h engine.c \
+				  ncurses_utils.h ncurses_utils.c \
+				  renderers.h renderers.c \
 				  main.c
 
-#engine.h engine.c
 
-connman_json_LDADD = @DBUS_LIBS@ -ldl -ljson -lncurses
+connman_json_LDADD = @DBUS_LIBS@ -ldl -ljson -lform -lmenu -lncurses
 
 if TEST_JSON_UTILS
 noinst_PROGRAMS += test_json_utils
 
-test_json_utils_SOURCES = test_json_utils.c json_utils.h json_utils.c
+test_json_utils_SOURCES = test_json_utils.c
 endif

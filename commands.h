@@ -38,6 +38,7 @@
 #include "dbus_helpers.h"
 #include "agent.h"
 #include "dbus_json.h"
+#include "engine.h"
 
 #define JSON_COMMANDS_STRING_SIZE_SMALL 25
 #define JSON_COMMANDS_STRING_SIZE_MEDIUM 70
@@ -45,6 +46,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+int __cmd_state(void);
+
+int __cmd_services(void);
+
+int __cmd_technologies(void);
+
+int __cmd_monitor(struct json_object *jobj);
 
 int __connman_command_dispatcher(DBusConnection *dbus_conn,
 	struct json_object *jobj);

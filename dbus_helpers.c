@@ -61,7 +61,11 @@ int send_method_call(DBusConnection *connection,
 	DBusPendingCall *call;
 	struct dbus_callback *callback;
 
-	if (!dbus_connection_send_with_reply(connection, message, &call, TIMEOUT))
+	if (!dbus_connection_send_with_reply(
+			connection,
+			message,
+			&call,
+			TIMEOUT))
 		goto end;
 
 	if (!call)

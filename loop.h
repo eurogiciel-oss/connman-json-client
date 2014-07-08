@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-void loop_init(DBusConnection *connection);
+void loop_init(void);
 
 void loop_run(_Bool poll_stdin);
 

@@ -17,35 +17,29 @@
  *
  */
 
-#ifndef __CONNMAN_ENGINE_H
-#define __CONNMAN_ENGINE_H
+#ifndef __CONNMAN_RENDERERS_H
+#define __CONNMAN_RENDERERS_H
 
-#include "commands.h"
-#include "json_utils.h"
-#include "loop.h"
+#include <stdlib.h>
+#include <json/json.h>
+#include <string.h>
+#include <assert.h>
 
-#define ENGINE_KEY_COMMAND "command"
-#define ENGINE_KEY_CMD_DATA "cmd_data"
+#include "ncurses_utils.h"
+
+#define RENDERERS_STRING_MAX_LEN 100
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-DBusConnection *connection;
+void __renderers_home_page(struct json_object *jobj);
 
-void (*commands_callback)(struct json_object *data, json_bool is_error);
-void (*commands_signal)(struct json_object *data);
-void (*agent_callback)(struct json_object *data, struct agent_data *request);
-void (*agent_error_callback)(struct json_object *data, struct agent_data *request);
-
-extern void (*engine_callback)(int status, struct json_object *jobj);
-
-int __engine_query(struct json_object *jobj);
-
-int __engine_init(void);
+void __renderers_free_home_page(void);
 
 #ifdef __cplusplus
 }
+
 #endif
 
 #endif
