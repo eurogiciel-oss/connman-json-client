@@ -8,3 +8,8 @@ Makefile
 Makefile.in
 connman_json
 .deps/
+main_simple_commands
+test_json_utils
+config.h
+config.h.in~
+stamp-h1

@@ -17,25 +17,37 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <json/json.h>
+#include <sys/types.h>
+#include <regex.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
 #include "json_utils.h"
+
+_Bool __match_strings(const char *str, const char *trusted)
+{
+	int regexp_err, regexp_match;
+	regex_t preg;
+
+	regexp_err = regcomp(&preg, trusted, REG_NOSUB | REG_EXTENDED);
+	assert(regexp_err == 0);
+	regexp_match = regexec(&preg, str, 0, NULL, 0);
+	regfree(&preg);
+
+	return (regexp_match == 0);
+}
 
 static _Bool json_match_string(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
-	_Bool res = false;
-	int regexp_err, regexp_match;
-	regex_t preg;
-
-	regexp_err = regcomp(&preg, json_object_get_string(jtrusted),
-			REG_NOSUB | REG_EXTENDED);
-	assert(regexp_err == 0);
-	regexp_match = regexec(&preg, json_object_get_string(jobj), 0, NULL, 0);
-	regfree(&preg);
-
-	if (regexp_match == 0)
-		res = true;
-	
-	return res;
+	return __match_strings(json_object_get_string(jobj),
+			json_object_get_string(jtrusted));
 }
 
 static _Bool json_match_object(struct json_object *jobj,

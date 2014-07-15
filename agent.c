@@ -17,6 +17,21 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "dbus_helpers.h"
+#include "dbus_json.h"
+
 #include "agent.h"
 
 static DBusConnection *agent_connection;
@@ -88,14 +103,6 @@ static struct json_object* format_agent_msg(const char *msg,
 
 	return res;
 }
-
-struct agent_data {
-	char *interface;
-	bool registered;
-	DBusMessage *message;
-	DBusMessage *reply;
-	DBusMethodFunction pending_function;
-};
 
 static struct agent_data agent_request = {
 	AGENT_INTERFACE,

@@ -20,25 +20,10 @@
 #ifndef __CONNMAN_COMMANDS_H
 #define __CONNMAN_COMMANDS_H
 
-#define _POSIX_C_SOURCE 200809L
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <dbus/dbus.h>
+#include <json/json.h>
 
-#include "dbus_helpers.h"
-#include "agent.h"
-#include "dbus_json.h"
-#include "engine.h"
+#define _POSIX_C_SOURCE 200809L
 
 #define JSON_COMMANDS_STRING_SIZE_SMALL 25
 #define JSON_COMMANDS_STRING_SIZE_MEDIUM 70

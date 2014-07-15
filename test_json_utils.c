@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 
@@ -78,4 +82,6 @@ int main()
 
 	printf("\n[*] the end.\n");
 	json_object_put(jtrusted);
+
+	return 0;
 }

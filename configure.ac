@@ -24,6 +24,8 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
+CFLAGS=""
+
 AC_ARG_ENABLE(optimization, AC_HELP_STRING([--disable-optimization],
 			[disable code optimization through compiler]), [
 	if (test "${enableval}" = "no"); then
@@ -39,6 +41,7 @@ AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
 	fi
 ])
 
+AC_CONFIG_HEADERS([config.h:config.h.in])
 
 PKG_CHECK_MODULES([json], [json-c],,
 	[PKG_CHECK_MODULES([json], [json],,
@@ -56,12 +59,6 @@ PKG_CHECK_MODULES(DBUS, dbus-1 >= 1.4, dummy=yes,
 				AC_MSG_ERROR(D-Bus >= 1.4 is required))
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
-
-AC_ARG_ENABLE(testjsonutils,
-		AC_HELP_STRING([--enable-testjsonutils], [compile test_json_utils.c]),
-		[enable_testjsonutils=${enableval}])
-AM_CONDITIONAL(TEST_JSON_UTILS, test "${enable_testjsonutils}" = "yes")
-
 
 AC_CHECK_HEADER(ncurses/ncurses.h, HAVE_NCURSES_H=1)
 AC_CHECK_LIB(ncurses, initscr, HAVE_LIBNCURSES=1)

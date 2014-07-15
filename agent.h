@@ -20,27 +20,21 @@
 #ifndef __CONNMAN_AGENT_H
 #define __CONNMAN_AGENT_H
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#include <dbus/dbus.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <string.h>
-#include <ctype.h>
-
 #include "dbus_helpers.h"
-#include "dbus_json.h"
 
 #define AGENT_INTERFACE      "net.connman.Agent"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct agent_data {
+	char *interface;
+	_Bool registered;
+	DBusMessage *message;
+	DBusMessage *reply;
+	DBusMethodFunction pending_function;
+};
 
 struct agent_data;
 

@@ -17,6 +17,17 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <dbus/dbus.h>
+#include <json/json.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <stdio.h>
+#include <errno.h>
+
 #include "dbus_helpers.h"
 
 struct dbus_callback {
@@ -61,11 +72,8 @@ int send_method_call(DBusConnection *connection,
 	DBusPendingCall *call;
 	struct dbus_callback *callback;
 
-	if (!dbus_connection_send_with_reply(
-			connection,
-			message,
-			&call,
-			TIMEOUT))
+	if (!dbus_connection_send_with_reply(connection, message, &call,
+				TIMEOUT))
 		goto end;
 
 	if (!call)

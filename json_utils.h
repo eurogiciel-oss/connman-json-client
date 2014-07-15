@@ -20,16 +20,11 @@
 #ifndef __CONNMAN_JSON_UTILS_H
 #define __CONNMAN_JSON_UTILS_H
 
-#include <json/json.h>
-#include <sys/types.h>
-#include <regex.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+_Bool __match_strings(const char *str, const char *trusted);
 
 _Bool __json_type_dispatch(struct json_object *jobj,
 		struct json_object *jtrusted);

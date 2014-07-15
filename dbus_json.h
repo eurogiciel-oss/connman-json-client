@@ -20,14 +20,6 @@
 #ifndef __CONNMAN_DBUS_JSON_H
 #define __CONNMAN_DBUS_JSON_H
 
-#include <dbus/dbus.h>
-#include <json/json.h>
-#include <stdio.h>
-#include <errno.h>
-#include <ncurses.h>
-
-#include "dbus_helpers.h"
-
 #define DBUS_JSON_SUCCESS_KEY "OK"
 #define DBUS_JSON_ERROR_KEY "ERROR"
 #define DBUS_JSON_AGENT_ERROR_KEY "ERROR Agent"
@@ -56,9 +48,6 @@ void __connman_dbus_json_print_pretty(struct json_object *jobj);
 
 int __connman_json_to_dbus_dict(struct json_object *jobj,
 		DBusMessageIter *dict);
-
-void __connman_dbus_json_print_pretty_curses(WINDOW *my_win,
-		struct json_object *jobj);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 AM_MAKEFLAGS = --no-print-directory
-AM_CFLAGS = @DBUS_CFLAGS@ -Wall -Werror -std=c99
+AM_CFLAGS = @DBUS_CFLAGS@ -Wall -Werror -pedantic
 
 noinst_PROGRAMS = connman_json
 
@@ -16,9 +16,4 @@ connman_json_SOURCES = dbus_helpers.h dbus_helpers.c \
 
 
 connman_json_LDADD = @DBUS_LIBS@ -ldl -ljson -lform -lmenu -lncurses
-
-if TEST_JSON_UTILS
-noinst_PROGRAMS += test_json_utils
-
-test_json_utils_SOURCES = test_json_utils.c
-endif
+connman_json_LDFLAGS = -Wl,--warn-common

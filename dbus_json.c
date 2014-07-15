@@ -16,6 +16,19 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <dbus/dbus.h>
+#include <json/json.h>
+#include <stdio.h>
+#include <errno.h>
+#include <ncurses.h>
+
+#include "dbus_helpers.h"
+
 #include "dbus_json.h"
 
 struct json_object* dbus_basic_json(DBusMessageIter *iter)
@@ -183,11 +196,6 @@ void __connman_dbus_json_print_pretty(struct json_object *jobj)
 {
         fprintf(stdout, "\n%s\n", json_object_to_json_string_ext(jobj,
 	JSON_C_TO_STRING_PRETTY));
-}
-
-void __connman_dbus_json_print_pretty_curses(WINDOW *my_win, struct json_object *jobj)
-{
-	wprintw(my_win, json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_SPACED));
 }
 
 int __connman_json_to_dbus_dict(struct json_object *jobj,

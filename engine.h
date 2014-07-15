@@ -20,9 +20,7 @@
 #ifndef __CONNMAN_ENGINE_H
 #define __CONNMAN_ENGINE_H
 
-#include "commands.h"
-#include "json_utils.h"
-#include "loop.h"
+#include "agent.h"
 
 #define ENGINE_KEY_COMMAND "command"
 #define ENGINE_KEY_CMD_DATA "cmd_data"
@@ -31,12 +29,12 @@
 extern "C" {
 #endif
 
-DBusConnection *connection;
+extern DBusConnection *connection;
 
-void (*commands_callback)(struct json_object *data, json_bool is_error);
-void (*commands_signal)(struct json_object *data);
-void (*agent_callback)(struct json_object *data, struct agent_data *request);
-void (*agent_error_callback)(struct json_object *data, struct agent_data *request);
+extern void (*commands_callback)(struct json_object *data, json_bool is_error);
+extern void (*commands_signal)(struct json_object *data);
+extern void (*agent_callback)(struct json_object *data, struct agent_data *request);
+extern void (*agent_error_callback)(struct json_object *data, struct agent_data *request);
 
 extern void (*engine_callback)(int status, struct json_object *jobj);
 

@@ -22,10 +22,6 @@
 
 #include <dbus/dbus.h>
 #include <json/json.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <stdio.h>
-#include <errno.h>
 
 #define TIMEOUT           60000
 #define CONNMAN_SERVICE   "net.connman"

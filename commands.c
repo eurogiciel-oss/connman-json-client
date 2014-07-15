@@ -17,6 +17,23 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "dbus_helpers.h"
+#include "agent.h"
+#include "dbus_json.h"
+#include "engine.h"
+
 #include "commands.h"
 
 extern DBusConnection *connection;

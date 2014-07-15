@@ -2,6 +2,6 @@
 
 autoreconf -i
 
-./configure --disable-optimization --enable-debug
+./configure --disable-optimization --enable-debug --disable-silent-rules
 
-make
+make -B

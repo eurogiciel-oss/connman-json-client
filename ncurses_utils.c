@@ -20,41 +20,17 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <stdlib.h>
+#include <ncurses/form.h>
+#include <ncurses/menu.h>
+
 #include "ncurses_utils.h"
 
-extern WINDOW *win_header, *win_footer, *win_body;
-
-void __ncurses_better_field(FIELD *label, FIELD *field, const char *label_txt,
-		const char *field_txt)
-{
-	char *tmp_label_txt, *tmp_field_txt;
-
-	tmp_label_txt = malloc(sizeof(char) * NCURSES_MAX_FIELD_LEN);
-
-	if (!tmp_label_txt)
-		return;
-
-	tmp_field_txt = malloc(sizeof(char) * NCURSES_MAX_FIELD_LEN);
-
-	if (!tmp_field_txt) {
-		free(tmp_label_txt);
-		return;
-	}
-
-	snprintf(tmp_label_txt, NCURSES_MAX_FIELD_LEN, "%s", label_txt);
-	tmp_label_txt[NCURSES_MAX_FIELD_LEN-1] = '\0';
-	snprintf(tmp_field_txt, NCURSES_MAX_FIELD_LEN, "%s", field_txt);
-	tmp_field_txt[NCURSES_MAX_FIELD_LEN-1] = '\0';
-
-	set_field_buffer(label, 0, tmp_label_txt);
-	set_field_buffer(field, 0, tmp_field_txt);
-}
-
-void __ncurses_better_field_free(FIELD *label, FIELD *field)
-{
-	free(field_buffer(label, 0));
-	free(field_buffer(field, 0));
-}
+extern WINDOW *win_footer;
 
 void __ncurses_print_info_in_footer(_Bool is_error, const char* msg)
 {

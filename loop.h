@@ -20,15 +20,6 @@
 #ifndef __CONNMAN_LOOP_H
 #define __CONNMAN_LOOP_H
 
-#define _POSIX_SOURCE
-
-#include <poll.h>
-#include <dbus/dbus.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-
 #define WATCHEDS_MAX_COUNT 20
 
 #ifdef __cplusplus

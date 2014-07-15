@@ -23,20 +23,11 @@
 #ifndef __CONNMAN_NCURSES_UTILS_H
 #define __CONNMAN_NCURSES_UTILS_H
 
-#include <stdlib.h>
-#include <ncurses/form.h>
-#include <ncurses/menu.h>
-
 #define NCURSES_MAX_FIELD_LEN 30
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void __ncurses_better_field_free(FIELD *label, FIELD *field);
-
-void __ncurses_better_field(FIELD *label, FIELD *field, const char *label_txt,
-		const char *field_txt);
 
 void __ncurses_print_info_in_footer(_Bool is_error, const char* msg);
 

@@ -20,6 +20,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -32,43 +36,21 @@
 
 #include "engine.h"
 #include "loop.h"
-#include "ncurses_utils.h"
+
+void stop_loop(int signum);
+void (*engine_callback)(int status, struct json_object *jobj) = NULL;
+void main_callback(int status, struct json_object *jobj);
 
 void __connman_callback_ended(void)
 {
 	printf("\n[-] __connman_callback_ended\n");
 }
 
-void stop_loop(int signum);
-
 void stop_loop(int signum)
 {
 	printf("\n[*] ^C detected\n");
 	loop_quit();
-	loop_terminate();
 }
-
-void (*engine_callback)(int status, struct json_object *jobj) = NULL;
-void main_callback(int status, struct json_object *jobj);
-
-/*
-void render_technologies(struct json_object *jobj)
-{
-	int len, i;
-	struct json_object *tech_name, *tech_dict;
-
-	len = json_object_array_length(jobj);
-
-	for (i = 0; i < len; i++) {
-		
-	}
-}
-
-void free_render_technologies()
-{
-	//TODO
-}
-*/
 
 void main_callback(int status, struct json_object *jobj)
 {
@@ -82,7 +64,6 @@ void __ncurses_action(int ch) {
 
 int main()
 {
-	int return_code;
 	struct json_object *cmd;
 
 	engine_callback = main_callback;
@@ -95,29 +76,27 @@ int main()
 
 	// get_state
 	/*
-	mvprintw(1, 5, "get_state: ");
-	refresh();
-	//waddstr(my_win, "[*] get_state:\n");
+	printf("[*] get_state:\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, "command", json_object_new_string("get_state"));
-	return_code = - __engine_query(cmd);
-
-	// get_services
-	wprintw(my_win, "[*] get_services:\n");
-	cmd = json_object_new_object();
-	json_object_object_add(cmd, "command", json_object_new_string("get_services"));
-	return_code = - __engine_query(cmd);
+	__engine_query(cmd);
 	*/
 
+	// get_services
+	printf("[*] get_services:\n");
+	cmd = json_object_new_object();
+	json_object_object_add(cmd, "command", json_object_new_string("get_services"));
+	__engine_query(cmd);
+
+	/*
 	// get_technologies
 	printf("[*] get_technologies:\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, "command", json_object_new_string("get_technologies"));
-	return_code = - __engine_query(cmd);
+	__engine_query(cmd);
+	*/
 
-	loop_run(true);
-
-	printf("[*] just to trick the compiler : %d\r\n", return_code);
+	loop_run(false);
 	loop_terminate();
 
 	return 0;
