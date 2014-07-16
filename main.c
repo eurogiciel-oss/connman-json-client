@@ -69,7 +69,7 @@ static struct {
 } context_actions[] = {
 	{ print_services_for_tech, __renderers_free_home_page, print_home_page }, // CONTEXT_HOME
 	{ NULL, __renderers_free_service_config, print_home_page}, // CONTEXT_SERVICE_CONFIG
-	{ NULL, NULL, NULL }, // CONTEXT_SERVICES
+	{ NULL, __renderers_free_services, print_home_page }, // CONTEXT_SERVICES
 };
 
 void stop_loop(int signum);
@@ -88,12 +88,15 @@ void stop_loop(int signum)
 
 	if (context_actions[current_context].func_free)
 		context_actions[current_context].func_free();
+
+	__engine_terminate();
 }
 
 void print_home_page(void)
 {
 	struct json_object *cmd;
 
+	werase(win_footer);
 	__ncurses_print_info_in_footer(false, "asking for 'get_home_page'\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, ENGINE_KEY_COMMAND, json_object_new_string("get_home_page"));
@@ -186,14 +189,10 @@ void exec_action_context_home(int ch)
 			item = current_item(my_menu);
 			exec_action(item_userptr(item));
 			break;
-
-		case 27: // Escape
-			__ncurses_print_info_in_footer(false, "^C to quit\n");
-			break;
 	}
 }
 
-void exec_action_context_services_config(int ch)
+void exec_action_context_service_config(int ch)
 {
 	FIELD *field;
 	int cur_page = form_page(my_form);
@@ -227,9 +226,26 @@ void exec_action_context_services_config(int ch)
 			__ncurses_print_info_in_footer(false,
 					field_buffer(field, 0));
 			break;
+	}
+}
 
-		case 27: // Escape
-			exec_back();
+void exec_action_context_services(int ch)
+{
+	ITEM *item;
+
+	switch (ch) {
+		case KEY_DOWN:
+			menu_driver(my_menu, REQ_DOWN_ITEM);
+			break;
+
+		case KEY_UP:
+			menu_driver(my_menu, REQ_UP_ITEM);
+			break;
+
+		case KEY_ENTER:
+		case 10:
+			item = current_item(my_menu);
+			__ncurses_print_info_in_footer(false, item_description(item));
 			break;
 	}
 }
@@ -238,17 +254,22 @@ void __ncurses_action(void)
 {
 	int ch = wgetch(win_body);
 
+	if (ch == 27) {
+		exec_back();
+		return;
+	}
+
 	switch (current_context) {
 		case CONTEXT_HOME:
 			exec_action_context_home(ch);
 			break;
 
 		case CONTEXT_SERVICE_CONFIG:
-			exec_action_context_services_config(ch);
+			exec_action_context_service_config(ch);
 			break;
 
 		case CONTEXT_SERVICES:
-			__ncurses_print_info_in_footer(true, "not handled yet");
+			exec_action_context_services(ch);
 			break;
 	}
 

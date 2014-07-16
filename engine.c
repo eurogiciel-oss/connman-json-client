@@ -195,10 +195,10 @@ static struct json_object* get_dict_of_technology(const char *technology)
 	return NULL;
 }
 
-static struct json_object* get_services_matching_tech_name(const char
+static struct json_object* get_services_matching_tech_type(const char
 		*technology, _Bool is_connected)
 {
-	struct json_object *array_serv, *serv_dict, *serv_name, *res;
+	struct json_object *array_serv, *serv_dict, *serv_type, *res;
 	struct json_object *serv_state;
 	int len, i;
 
@@ -208,9 +208,9 @@ static struct json_object* get_services_matching_tech_name(const char
 	for (i = 0; i < len; i++) {
 		array_serv = json_object_array_get_idx(services, i);
 		serv_dict = json_object_array_get_idx(array_serv, 1);
-		json_object_object_get_ex(serv_dict, "Name", &serv_name);
+		json_object_object_get_ex(serv_dict, "Type", &serv_type);
 
-		if (strncmp(json_object_get_string(serv_name), technology, 256) == 0) {
+		if (strncmp(json_object_get_string(serv_type), technology, 256) == 0) {
 			json_object_object_get_ex(serv_dict, "State", &serv_state);
 
 			if (is_connected && strncmp(json_object_get_string(serv_state), "online", 256) != 0)
@@ -225,8 +225,9 @@ static struct json_object* get_services_matching_tech_name(const char
 
 static int get_services_from_tech(struct json_object *jobj)
 {
-	struct json_object *tmp, *res, *res_serv, *res_tech, *tech_dict, *jtech_name, *tech_co;
-	const char *tech_dbus_name, *tech_name;
+	struct json_object *tmp, *res, *res_serv, *res_tech, *tech_dict,
+			   *jtech_type, *tech_co;
+	const char *tech_dbus_name, *tech_type;
 
 	json_object_object_get_ex(jobj, "technology", &tmp);
 	tech_dbus_name = json_object_get_string(tmp);
@@ -235,11 +236,12 @@ static int get_services_from_tech(struct json_object *jobj)
 		return -EINVAL;
 
 	tech_dict = get_dict_of_technology(tech_dbus_name);
-	json_object_object_get_ex(tech_dict, "Name", &jtech_name);
-	tech_name = json_object_get_string(jtech_name);
+	json_object_object_get_ex(tech_dict, "Type", &jtech_type);
+	tech_type = json_object_get_string(jtech_type);
 	json_object_object_get_ex(tech_dict, "Connected", &tech_co);
 
-	res_serv = get_services_matching_tech_name(tech_name, (tech_co ? true : false));
+	res_serv = get_services_matching_tech_type(tech_type,
+			(json_object_get_boolean(tech_co) ? true : false));
 	res_tech = json_object_new_array();
 	json_object_array_add(res_tech, tmp);
 	json_object_array_add(res_tech, tech_dict);
@@ -384,4 +386,10 @@ int __engine_init(void)
 	compose_home_page();
 
 	return 0;
+}
+
+void __engine_terminate(void)
+{
+	json_object_put(home_page);
+	json_object_put(services);
 }

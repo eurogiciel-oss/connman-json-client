@@ -42,6 +42,8 @@ int __engine_query(struct json_object *jobj);
 
 int __engine_init(void);
 
+void __engine_terminate(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -90,7 +90,8 @@ static char* extract_dbus_short_name(const char *str)
 static void renderers_technologies(struct json_object *jobj)
 {
 	int i;
-	char *desc_base = "%s (%s)      Powered %-5s      Connected %-6s";
+	char *desc_base = "%-20s Powered %-5s          Connected %-5s";
+	char desc_base_sub[30];
 	const char *k_name, *k_type, *k_powered, *k_connected;
 	char *desc, *tech_short_name;
 	struct json_object *sub_array, *tech_name, *tech_dict;
@@ -120,23 +121,29 @@ static void renderers_technologies(struct json_object *jobj)
 				k_connected = json_object_to_json_string(val);
 		}
 
+		snprintf(desc_base_sub, 30, "%s (%s)", k_name, k_type);
+		desc_base_sub[29] = '\0';
+
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
-		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base, k_name,
-				k_type, k_powered, k_connected);
+		assert(desc != NULL);
+		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base,
+				desc_base_sub, k_powered, k_connected);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 		tech_short_name =
 			extract_dbus_short_name(json_object_get_string(tech_name));
 		my_items[i] = new_item(tech_short_name, desc);
 
 		data = malloc(sizeof(struct userptr_data *));
-		assert(data);
+		assert(data != NULL);
 		data->dbus_name = strdup(json_object_get_string(tech_name));
 		set_item_userptr(my_items[i], data);
 	}
 
 	my_menu = new_menu(my_items);
 	set_menu_win(my_menu, win_body);
-	set_menu_sub(my_menu, derwin(win_body, win_body_lines, COLS-4, 2, 3));
+	set_menu_sub(my_menu, derwin(win_body, win_body_lines-2, COLS-4, 4, 3));
+	set_menu_mark(my_menu, "");
+	set_menu_format(my_menu, win_body_lines-2, 1);
 	assert(post_menu(my_menu) == E_OK);
 
 	wnoutrefresh(win_header);
@@ -174,6 +181,8 @@ void __renderers_home_page(struct json_object *jobj)
 
 	json_object_object_get_ex(jobj, "technologies", &tech);
 	json_object_object_get_ex(jobj, "state", &state);
+
+	mvwprintw(win_body, 2, 3, "Technologies:");
 
 	renderers_state(state);
 	renderers_technologies(tech);
@@ -214,7 +223,7 @@ static _Bool tech_is_connected(struct json_object *jobj)
 
 	json_object_object_get_ex(jobj, "Connected", &jbool);
 
-	return (jbool ? true : false);
+	return (json_object_get_boolean(jbool) ? true : false);
 }
 
 static int compute_nb_elems_in_service(struct json_object *jobj)
@@ -306,7 +315,7 @@ static void renderers_service_config(struct json_object *tech_array,
 
 	nb_fields = 0;
 	cur_y = 2;
-	cur_x = 3;
+	cur_x = 2;
 	serv_dict = json_object_array_get_idx(serv_array, 1);
 
 	// We compute how many fields we will need
@@ -339,7 +348,90 @@ void __renderers_services_config_paging(void)
 			"Page %d/%d, use page_up/page_down for "
 			"previous/next page", form_page(my_form), nb_pages);
 
+	mvwprintw(win_body, 2, 3, "Service configuration:");
+
 	pos_form_cursor(my_form);
+}
+
+static void renderers_services(struct json_object *jobj)
+{
+	int i;
+	// eSSID  Security  Signal strengh
+	char *desc_base = "%-33s%20s     %u%%", *desc;
+	const char *essid_str, *security_str, *serv_name_str;
+	uint8_t signal_strength;
+	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
+	
+	nb_items = json_object_array_length(jobj);
+
+	if (nb_items == 0) {
+		mvwprintw(win_body, 2, 3, "No suitable services found for this"
+				" technology");
+		wrefresh(win_body);
+		return;
+	}
+
+	my_items = calloc(nb_items+1, sizeof(ITEM *));
+	assert(my_items != NULL);
+
+	mvwprintw(win_body, 2, 3, "Choose a network to connect to:");
+	mvwprintw(win_body, 4, 3, "%-33s%20s%20s\n", "eSSID", "Security", "Signal"
+			" Strength");
+
+	for (i = 0; i < nb_items; i++) {
+		sub_array = json_object_array_get_idx(jobj, i);
+		serv_name = json_object_array_get_idx(sub_array, 0);
+		serv_dict = json_object_array_get_idx(sub_array, 1);
+
+		json_object_object_get_ex(serv_dict, "Name", &tmp);
+		essid_str = json_object_get_string(tmp);
+
+		json_object_object_get_ex(serv_dict, "Security", &tmp);
+		security_str = json_object_get_string(tmp);
+
+		json_object_object_get_ex(serv_dict, "Strength", &tmp);
+		signal_strength = (uint8_t) json_object_get_int(tmp);
+
+		desc = malloc(RENDERERS_STRING_MAX_LEN);
+		assert(desc != NULL);
+		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base, essid_str,
+			security_str, signal_strength);
+		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
+
+		serv_name_str = json_object_get_string(serv_name);
+
+		my_items[i] = new_item(desc, strdup(serv_name_str));
+	}
+
+	my_items[nb_items] = NULL;
+	my_menu = new_menu(my_items);
+	set_menu_win(my_menu, win_body);
+	set_menu_sub(my_menu, derwin(win_body, win_body_lines-4, COLS-4, 6, 3));
+	menu_opts_off(my_menu, O_SHOWDESC);
+	set_menu_mark(my_menu, "");
+	set_menu_format(my_menu, win_body_lines-3, 1);
+	assert(post_menu(my_menu) == E_OK);
+
+	wrefresh(win_body);
+}
+
+void __renderers_free_services(void)
+{
+	int i;
+
+	if (nb_items == 0)
+		return;
+
+	unpost_menu(my_menu);
+	free_menu(my_menu);
+
+	for (i = 0; i < nb_items; i++) {
+		free((void *) my_items[i]->name.str);
+		free((void *) my_items[i]->description.str);
+		free_item(my_items[i]);
+	}
+
+	free(my_items);
 }
 
 void __renderers_services(struct json_object *jobj)
@@ -360,8 +452,8 @@ void __renderers_services(struct json_object *jobj)
 		__renderers_services_config_paging();
 	} else {
 		// propose to connect to one service
+		renderers_services(serv_array);
 		current_context = CONTEXT_SERVICES;
-		assert(1);
 	}
 }
 
