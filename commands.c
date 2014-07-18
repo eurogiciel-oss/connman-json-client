@@ -42,6 +42,10 @@ extern void (*commands_callback)(struct json_object *data, json_bool is_error);
 
 extern void (*commands_signal)(struct json_object *data);
 
+void (*commands_callback)(struct json_object *data, json_bool is_error) = NULL;
+void (*commands_signal)(struct json_object *data) = NULL;
+
+
 static bool check_dbus_name(const char *name)
 {
 	/*
@@ -185,6 +189,13 @@ int __cmd_technologies(void)
 	return __connman_dbus_method_call(connection, CONNMAN_SERVICE,
 			CONNMAN_PATH, "net.connman.Manager", "GetTechnologies",
 			call_return_list, NULL,	NULL, NULL);
+}
+
+int __cmd_connect_full_name(const char *serv_dbus_name)
+{
+	return __connman_dbus_method_call(connection, CONNMAN_SERVICE,
+			serv_dbus_name, "net.connman.Service", "Connect",
+			call_return_list, NULL, NULL, NULL);
 }
 
 /*
@@ -574,12 +585,10 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 
 	} else if (dbus_message_is_signal(message, "net.connman.Service",
 				"PropertyChanged")) {
-		path = dbus_message_get_member(message);
 		sig_name = json_object_new_string("PropertyChanged");
 
 	} else if (dbus_message_is_signal(message, "net.connman.Technology",
 				"PropertyChanged")) {
-		path = dbus_message_get_member(message);
 		sig_name = json_object_new_string("PropertyChanged");
 
 	} else {

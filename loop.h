@@ -20,15 +20,13 @@
 #ifndef __CONNMAN_LOOP_H
 #define __CONNMAN_LOOP_H
 
-#define WATCHEDS_MAX_COUNT 20
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void loop_init(void);
 
-void loop_run(_Bool poll_stdin);
+void loop_run(bool poll_stdin);
 
 void loop_quit(void);
 

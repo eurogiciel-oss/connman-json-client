@@ -58,9 +58,10 @@ extern int nb_items;
 extern int nb_fields;
 
 void print_services_for_tech(struct userptr_data *data);
-void action_on_service_config(struct userptr_data *data);
+void connect_to_service(struct userptr_data *data);
 
 void print_home_page(void);
+void exec_back(void);
 
 static struct {
 	void (*func)(struct userptr_data *data);
@@ -69,12 +70,8 @@ static struct {
 } context_actions[] = {
 	{ print_services_for_tech, __renderers_free_home_page, print_home_page }, // CONTEXT_HOME
 	{ NULL, __renderers_free_service_config, print_home_page}, // CONTEXT_SERVICE_CONFIG
-	{ NULL, __renderers_free_services, print_home_page }, // CONTEXT_SERVICES
+	{ connect_to_service, __renderers_free_services, print_home_page }, // CONTEXT_SERVICES
 };
-
-void stop_loop(int signum);
-void (*engine_callback)(int status, struct json_object *jobj) = NULL;
-void main_callback(int status, struct json_object *jobj);
 
 void __connman_callback_ended(void)
 {
@@ -84,12 +81,61 @@ void __connman_callback_ended(void)
 
 void stop_loop(int signum)
 {
+	printf("[*] @stop_loop got called ");
 	loop_quit();
 
 	if (context_actions[current_context].func_free)
 		context_actions[current_context].func_free();
 
-	__engine_terminate();
+	engine_terminate();
+}
+
+void main_callback(int status, struct json_object *jobj)
+{
+	struct json_object *data, *cmd_tmp, *error;
+	const char *cmd_name;
+
+	//assert(status == 0);
+
+	json_object_object_get_ex(jobj, "ERROR", &error);
+	if (error) {
+		__ncurses_print_info_in_footer(true, json_object_get_string(
+					json_object_array_get_idx(error, 0)));
+		json_object_put(jobj);
+		return;
+	}
+
+	/* get the main object items */
+	json_object_object_get_ex(jobj, "command_name", &cmd_tmp);
+	//assert(cmd_tmp != NULL);
+	json_object_object_get_ex(jobj, "data", &data);
+	cmd_name = json_object_get_string(cmd_tmp);
+	//assert(cmd_name != NULL);
+
+	werase(win_body);
+	box(win_body, 0, 0);
+
+	if (!cmd_name) {
+		// TODO improve
+		__ncurses_print_info_in_footer(false, "Got a callback\n");
+		exec_back();
+	} else {
+
+		/* dispatch according to the command name */
+		if (strcmp("get_home_page", cmd_name) == 0)
+			__renderers_home_page(data);
+		else if (strcmp("get_services_from_tech", cmd_name) == 0)
+			__renderers_services(data);
+		else {
+			mvwprintw(win_footer, 0, 1, "[INFO]: unknown command called"
+					" back: status %d\tjobj %s\n",
+					json_object_get_string(jobj));
+			wrefresh(win_footer);
+		}
+	}
+
+	/* release the memory of the json object now */
+	json_object_put(jobj);
 }
 
 void print_home_page(void)
@@ -100,36 +146,7 @@ void print_home_page(void)
 	__ncurses_print_info_in_footer(false, "asking for 'get_home_page'\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, ENGINE_KEY_COMMAND, json_object_new_string("get_home_page"));
-	__engine_query(cmd);
-}
-
-void main_callback(int status, struct json_object *jobj)
-{
-	struct json_object *data, *cmd_tmp;
-	const char *cmd_name;
-
-	assert(status == 0);
-
-	/* get the main object items */
-	json_object_object_get_ex(jobj, "command_name", &cmd_tmp);
-	assert(cmd_tmp != NULL);
-	json_object_object_get_ex(jobj, "data", &data);
-	cmd_name = json_object_get_string(cmd_tmp);
-	assert(cmd_name != NULL);
-
-	werase(win_body);
-	box(win_body, 0, 0);
-
-	/* dispatch according to the command name */
-	if (strcmp("get_home_page", cmd_name) == 0)
-		__renderers_home_page(data);
-	else if (strcmp("get_services_from_tech", cmd_name) == 0)
-		__renderers_services(data);
-	else
-		assert(1);
-
-	/* release the memory of the json object now */
-	json_object_put(jobj);
+	engine_query(cmd);
 }
 
 void print_services_for_tech(struct userptr_data *data)
@@ -149,8 +166,29 @@ void print_services_for_tech(struct userptr_data *data)
 	__ncurses_print_info_in_footer(false, "asking for "
 			"'get_services_from_tech'\n");
 
-	if (__engine_query(cmd) == -EINVAL)
+	if (engine_query(cmd) == -EINVAL)
 		__ncurses_print_info_in_footer(true, "@print_services_for_tech:"
+				"invalid argument/value");
+}
+
+void connect_to_service(struct userptr_data *data)
+{
+	struct json_object *cmd, *tmp;
+
+	cmd = json_object_new_object();
+	tmp = json_object_new_object();
+
+	json_object_object_add(cmd, ENGINE_KEY_COMMAND,
+			json_object_new_string("connect"));
+	json_object_object_add(tmp, "service",
+			json_object_new_string(data->dbus_name));
+	json_object_object_add(cmd, ENGINE_KEY_CMD_DATA, tmp);
+
+	__ncurses_print_info_in_footer(false, "asking for "
+			"'connect'\n");
+
+	if (engine_query(cmd) == -EINVAL)
+		__ncurses_print_info_in_footer(true, "@connect_to_service:"
 				"invalid argument/value");
 }
 
@@ -245,17 +283,22 @@ void exec_action_context_services(int ch)
 		case KEY_ENTER:
 		case 10:
 			item = current_item(my_menu);
-			__ncurses_print_info_in_footer(false, item_description(item));
+			exec_action(item_userptr(item));
 			break;
 	}
 }
 
-void __ncurses_action(void)
+void ncurses_action(void)
 {
 	int ch = wgetch(win_body);
 
 	if (ch == 27) {
-		exec_back();
+
+		if (current_context == CONTEXT_HOME)
+			__ncurses_print_info_in_footer(false, "^C to quit\n");
+		else
+			exec_back();
+
 		return;
 	}
 
@@ -281,7 +324,7 @@ int main(void)
 	struct json_object *cmd;
 	engine_callback = main_callback;
 
-	if (__engine_init() < 0)
+	if (engine_init() < 0)
 		exit(1);
 
 	signal(SIGINT, stop_loop);
@@ -317,7 +360,7 @@ int main(void)
 	__ncurses_print_info_in_footer(false, "asking for 'get_home_page'\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, ENGINE_KEY_COMMAND, json_object_new_string("get_home_page"));
-	__engine_query(cmd);
+	engine_query(cmd);
 
 	loop_run(true);
 	loop_terminate();

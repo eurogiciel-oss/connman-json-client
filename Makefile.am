@@ -12,6 +12,7 @@ connman_json_SOURCES = dbus_helpers.h dbus_helpers.c \
 				  engine.h engine.c \
 				  ncurses_utils.h ncurses_utils.c \
 				  renderers.h renderers.c \
+				  keys.h keys.c \
 				  main.c
 
 

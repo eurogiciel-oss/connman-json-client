@@ -197,7 +197,6 @@ void __renderers_free_home_page(void)
 	struct userptr_data *data;
 
 	unpost_menu(my_menu);
-	free_menu(my_menu);
 
 	for (i = 0; i < nb_items; i++) {
 		item = my_items[i];
@@ -211,13 +210,14 @@ void __renderers_free_home_page(void)
 		free_item(item);
 	}
 
+	free_menu(my_menu);
 	free(my_items);
 }
 
 /*
  { ..., "Connected":true, ...  } -> true | false
  */
-static _Bool tech_is_connected(struct json_object *jobj)
+static bool tech_is_connected(struct json_object *jobj)
 {
 	struct json_object *jbool;
 
@@ -332,7 +332,7 @@ static void renderers_service_config(struct json_object *tech_array,
 	my_form = new_form(field);
 	assert(my_form);
 	set_form_win(my_form, win_body);
-	inner = derwin(win_body, win_body_lines, COLS-2, 1, 1); 
+	inner = derwin(win_body, win_body_lines-1, COLS-2, 2, 1); 
 	assert(inner);
 	set_form_sub(my_form, inner);
 
@@ -342,39 +342,60 @@ static void renderers_service_config(struct json_object *tech_array,
 void __renderers_services_config_paging(void)
 {
 	if (!nb_pages)
-		return;
-
-	mvwprintw(win_body, win_body_lines, 1,
-			"Page %d/%d, use page_up/page_down for "
-			"previous/next page", form_page(my_form), nb_pages);
-
-	mvwprintw(win_body, 2, 3, "Service configuration:");
+		mvwprintw(win_body, 2, 3, "Service configuration :");
+	else
+		mvwprintw(win_body, 2, 3, "Service configuration (page %d/%d, use "
+				"page_up/page_down to change page):",
+				form_page(my_form), nb_pages);
 
 	pos_form_cursor(my_form);
 }
 
-static void renderers_services(struct json_object *jobj)
+static void renderers_services_ethernet(struct json_object *jobj)
+{
+	int i;
+	// Name
+	char *desc_base = "%-33s", *desc;
+	const char *name_str, *dbus_name_str;
+	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
+	struct userptr_data *data;
+
+	mvwprintw(win_body, 4, 3, "%-33s\n", "Name");
+
+	for (i = 0; i < nb_items; i++) {
+		sub_array = json_object_array_get_idx(jobj, i);
+		serv_name = json_object_array_get_idx(sub_array, 0);
+		serv_dict = json_object_array_get_idx(sub_array, 1);
+
+		json_object_object_get_ex(serv_dict, "Name", &tmp);
+		name_str = json_object_get_string(tmp);
+
+		desc = malloc(RENDERERS_STRING_MAX_LEN);
+		assert(desc != NULL);
+		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base, name_str);
+		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
+
+		dbus_name_str = json_object_get_string(serv_name);
+
+		my_items[i] = new_item(desc, "");
+
+		data = malloc(sizeof(struct userptr_data *));
+		assert(data != NULL);
+		data->dbus_name = strdup(dbus_name_str);
+		set_item_userptr(my_items[i], data);
+	}
+}
+
+static void renderers_services_wifi(struct json_object *jobj)
 {
 	int i;
 	// eSSID  Security  Signal strengh
-	char *desc_base = "%-33s%20s     %u%%", *desc;
+	char *desc_base = "%-33s%20s%17s%u%%", *desc;
 	const char *essid_str, *security_str, *serv_name_str;
 	uint8_t signal_strength;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
-	
-	nb_items = json_object_array_length(jobj);
+	struct userptr_data *data;
 
-	if (nb_items == 0) {
-		mvwprintw(win_body, 2, 3, "No suitable services found for this"
-				" technology");
-		wrefresh(win_body);
-		return;
-	}
-
-	my_items = calloc(nb_items+1, sizeof(ITEM *));
-	assert(my_items != NULL);
-
-	mvwprintw(win_body, 2, 3, "Choose a network to connect to:");
 	mvwprintw(win_body, 4, 3, "%-33s%20s%20s\n", "eSSID", "Security", "Signal"
 			" Strength");
 
@@ -395,13 +416,51 @@ static void renderers_services(struct json_object *jobj)
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
 		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base, essid_str,
-			security_str, signal_strength);
+			security_str, "", signal_strength);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 
 		serv_name_str = json_object_get_string(serv_name);
 
-		my_items[i] = new_item(desc, strdup(serv_name_str));
+		my_items[i] = new_item(desc, "");
+
+		data = malloc(sizeof(struct userptr_data *));
+		assert(data != NULL);
+		data->dbus_name = strdup(serv_name_str);
+		set_item_userptr(my_items[i], data);
 	}
+}
+
+static void renderers_services(struct json_object *jobj)
+{
+	char *dbus_short_name;
+	struct json_object *array, *dbus_long_name;
+	
+	nb_items = json_object_array_length(jobj);
+
+	if (nb_items == 0) {
+		mvwprintw(win_body, 2, 3, "No suitable services found for this"
+				" technology");
+		wrefresh(win_body);
+		return;
+	}
+
+	array = json_object_array_get_idx(jobj, 0);
+	dbus_long_name = json_object_array_get_idx(array, 0);
+
+	dbus_short_name = extract_dbus_short_name(json_object_get_string(dbus_long_name));
+	my_items = calloc(nb_items+1, sizeof(ITEM *));
+	assert(my_items != NULL);
+	
+	if (strncmp(dbus_short_name, "ethernet_", 9) == 0)
+		renderers_services_ethernet(jobj);
+	else if (strncmp(dbus_short_name, "wifi_", 5) == 0)
+		renderers_services_wifi(jobj);
+	else
+		assert(true);
+	
+	free(dbus_short_name);
+
+	mvwprintw(win_body, 2, 3, "Choose a network to connect to:");
 
 	my_items[nb_items] = NULL;
 	my_menu = new_menu(my_items);
@@ -418,19 +477,24 @@ static void renderers_services(struct json_object *jobj)
 void __renderers_free_services(void)
 {
 	int i;
+	struct userptr_data *data;
+	ITEM *item;
 
 	if (nb_items == 0)
 		return;
 
 	unpost_menu(my_menu);
-	free_menu(my_menu);
 
 	for (i = 0; i < nb_items; i++) {
-		free((void *) my_items[i]->name.str);
-		free((void *) my_items[i]->description.str);
-		free_item(my_items[i]);
+		item = my_items[i];
+		//free((void *) item->name.str);
+		data = item_userptr(item);
+		free((void *) data->dbus_name);
+		free(data);
+		free_item(item);
 	}
 
+	free_menu(my_menu);
 	free(my_items);
 }
 

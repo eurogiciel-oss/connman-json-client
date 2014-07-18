@@ -31,18 +31,13 @@ extern "C" {
 
 extern DBusConnection *connection;
 
-extern void (*commands_callback)(struct json_object *data, json_bool is_error);
-extern void (*commands_signal)(struct json_object *data);
-extern void (*agent_callback)(struct json_object *data, struct agent_data *request);
-extern void (*agent_error_callback)(struct json_object *data, struct agent_data *request);
-
 extern void (*engine_callback)(int status, struct json_object *jobj);
 
-int __engine_query(struct json_object *jobj);
+int engine_query(struct json_object *jobj);
 
-int __engine_init(void);
+int engine_init(void);
 
-void __engine_terminate(void);
+void engine_terminate(void);
 
 #ifdef __cplusplus
 }

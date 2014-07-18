@@ -55,6 +55,8 @@ void __renderers_services(struct json_object *jobj);
 
 void __renderers_free_service_config(void);
 
+void __renderers_free_services(void);
+
 #ifdef __cplusplus
 }
 

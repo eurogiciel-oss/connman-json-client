@@ -23,13 +23,15 @@
 #ifndef __CONNMAN_NCURSES_UTILS_H
 #define __CONNMAN_NCURSES_UTILS_H
 
+#include <stdbool.h>
+
 #define NCURSES_MAX_FIELD_LEN 30
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void __ncurses_print_info_in_footer(_Bool is_error, const char* msg);
+void __ncurses_print_info_in_footer(bool is_error, const char* msg);
 
 #ifdef __cplusplus
 }

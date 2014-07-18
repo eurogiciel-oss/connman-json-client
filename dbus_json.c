@@ -173,7 +173,7 @@ struct json_object* dbus_to_json(DBusMessageIter *iter)
 		res = NULL;
 		break;
         default:
-                fprintf(stderr, "Type non supporté dans dbus_to_json %d(%c)\n",
+                fprintf(stderr, "Type not supported in dbus_to_json %d(%c)\n",
                         arg_type, (char)arg_type);
                 res = NULL;
         }
@@ -183,8 +183,16 @@ struct json_object* dbus_to_json(DBusMessageIter *iter)
 
 struct json_object* __connman_dbus_to_json(DBusMessageIter *iter)
 {
-        json_object *res = dbus_to_json(iter);
-        return res;
+        struct json_object *res = NULL, *tmp = dbus_to_json(iter);
+
+	// This is useful for the TechnologyAdded signal for example
+	if (dbus_message_iter_next(iter) == TRUE) {
+		res = json_object_new_array();
+		json_object_array_add(res, tmp);
+		json_object_array_add(res, dbus_to_json(iter));
+	}
+
+        return (res == NULL ? tmp : res);
 }
 
 void __connman_dbus_json_print(struct json_object *jobj)

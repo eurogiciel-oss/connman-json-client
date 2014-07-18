@@ -27,13 +27,17 @@
 #include <dbus/dbus.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "loop.h"
 
 extern DBusConnection *connection;
-extern void __ncurses_action(void);
+extern void ncurses_action(void);
+
+#define WATCHEDS_MAX_COUNT 20
+
 static int stop_loop = 0;
 static DBusWatch *watcheds[WATCHEDS_MAX_COUNT];
 static int watcheds_count;
@@ -80,7 +84,7 @@ void loop_quit(void)
 	stop_loop = 1;
 }
 
-void loop_run(_Bool poll_stdin)
+void loop_run(bool poll_stdin)
 {
 	struct pollfd fds[WATCHEDS_MAX_COUNT];
 	DBusWatch *tmp_watcher;
@@ -113,7 +117,7 @@ void loop_run(_Bool poll_stdin)
 		}
 
 		if (poll_stdin) {
-			fds[nfds].fd = fileno(stdin);
+			fds[nfds].fd = 0;
 			fds[nfds].events = POLLHUP | POLLERR | POLLIN;
 			nfds++;
 		}
@@ -158,7 +162,7 @@ void loop_run(_Bool poll_stdin)
 		}
 		
 		if (poll_stdin && fds[nfds].revents & POLLIN)
-			__ncurses_action();
+			ncurses_action();
 
 	} // end while
 	stop_loop = 0;

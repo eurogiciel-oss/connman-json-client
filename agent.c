@@ -34,14 +34,14 @@
 
 #include "agent.h"
 
+void (*agent_callback)(struct json_object *data, struct agent_data *request) = NULL;
+void (*agent_error_callback)(struct json_object *data) = NULL;
+
 static DBusConnection *agent_connection;
 
-extern void (*agent_callback)(struct json_object *data,
-		struct agent_data *request);
 /*
  * agent_error_callback is dedicated to agent register/unregister errors.
  */
-extern void (*agent_error_callback)(struct json_object *data);
 
 void request_browser_return(struct json_object *connected,
 		struct agent_data *request);

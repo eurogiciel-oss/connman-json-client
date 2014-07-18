@@ -30,7 +30,7 @@
 
 #include "json_utils.h"
 
-_Bool __match_strings(const char *str, const char *trusted)
+bool __match_strings(const char *str, const char *trusted)
 {
 	int regexp_err, regexp_match;
 	regex_t preg;
@@ -43,17 +43,17 @@ _Bool __match_strings(const char *str, const char *trusted)
 	return (regexp_match == 0);
 }
 
-static _Bool json_match_string(struct json_object *jobj,
+static bool json_match_string(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
 	return __match_strings(json_object_get_string(jobj),
 			json_object_get_string(jtrusted));
 }
 
-static _Bool json_match_object(struct json_object *jobj,
+static bool json_match_object(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
-	_Bool res = true;
+	bool res = true;
 	struct json_object *tmp_trusted;
 	json_bool key_is_trusted;
 	
@@ -73,10 +73,10 @@ static _Bool json_match_object(struct json_object *jobj,
 	return res;
 }
 
-static _Bool json_match_array(struct json_object *jobj,
+static bool json_match_array(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
-	_Bool res = true;
+	bool res = true;
 	int array_len, i;
 	struct json_object *elem_trusted;
 
@@ -98,11 +98,11 @@ static _Bool json_match_array(struct json_object *jobj,
 	return res;
 }
 
-_Bool __json_type_dispatch(struct json_object *jobj,
+bool __json_type_dispatch(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
 	enum json_type type, type_trusted;
-	_Bool res;
+	bool res;
 
 	type = json_object_get_type(jobj);
 	type_trusted = json_object_get_type(jtrusted);
