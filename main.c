@@ -36,6 +36,7 @@
 #include "loop.h"
 #include "ncurses_utils.h"
 #include "renderers.h"
+#include "keys.h"
 
 /*
 
@@ -106,9 +107,9 @@ void main_callback(int status, struct json_object *jobj)
 	}
 
 	/* get the main object items */
-	json_object_object_get_ex(jobj, "command_name", &cmd_tmp);
+	json_object_object_get_ex(jobj, key_command, &cmd_tmp);
 	//assert(cmd_tmp != NULL);
-	json_object_object_get_ex(jobj, "data", &data);
+	json_object_object_get_ex(jobj, key_command_data, &data);
 	cmd_name = json_object_get_string(cmd_tmp);
 	//assert(cmd_name != NULL);
 
@@ -145,7 +146,7 @@ void print_home_page(void)
 	werase(win_footer);
 	__ncurses_print_info_in_footer(false, "asking for 'get_home_page'\n");
 	cmd = json_object_new_object();
-	json_object_object_add(cmd, ENGINE_KEY_COMMAND, json_object_new_string("get_home_page"));
+	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
 	engine_query(cmd);
 }
 
@@ -156,11 +157,11 @@ void print_services_for_tech(struct userptr_data *data)
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
 
-	json_object_object_add(cmd, ENGINE_KEY_COMMAND,
+	json_object_object_add(cmd, key_command,
 			json_object_new_string("get_services_from_tech"));
 	json_object_object_add(tmp, "technology",
 			json_object_new_string(data->dbus_name));
-	json_object_object_add(cmd, ENGINE_KEY_CMD_DATA, tmp);
+	json_object_object_add(cmd, key_command_data, tmp);
 
 	mvwprintw(win_footer, 1, 1, "[INFO] 'Esc' to get back\n");
 	__ncurses_print_info_in_footer(false, "asking for "
@@ -178,11 +179,11 @@ void connect_to_service(struct userptr_data *data)
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
 
-	json_object_object_add(cmd, ENGINE_KEY_COMMAND,
+	json_object_object_add(cmd, key_command,
 			json_object_new_string("connect"));
 	json_object_object_add(tmp, "service",
 			json_object_new_string(data->dbus_name));
-	json_object_object_add(cmd, ENGINE_KEY_CMD_DATA, tmp);
+	json_object_object_add(cmd, key_command_data, tmp);
 
 	__ncurses_print_info_in_footer(false, "asking for "
 			"'connect'\n");
@@ -359,7 +360,7 @@ int main(void)
 	// get_home_page (and render it)
 	__ncurses_print_info_in_footer(false, "asking for 'get_home_page'\n");
 	cmd = json_object_new_object();
-	json_object_object_add(cmd, ENGINE_KEY_COMMAND, json_object_new_string("get_home_page"));
+	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
 	engine_query(cmd);
 
 	loop_run(true);

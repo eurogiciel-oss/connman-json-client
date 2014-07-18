@@ -32,6 +32,9 @@
 extern "C" {
 #endif
 
+extern void (*commands_callback)(struct json_object *data, json_bool is_error);
+extern void (*commands_signal)(struct json_object *data);
+
 int __cmd_state(void);
 
 int __cmd_services(void);
@@ -42,6 +45,8 @@ int __cmd_monitor(struct json_object *jobj);
 
 int __connman_command_dispatcher(DBusConnection *dbus_conn,
 	struct json_object *jobj);
+
+int __cmd_connect_full_name(const char *serv_dbus_name);
 
 #ifdef __cplusplus
 }

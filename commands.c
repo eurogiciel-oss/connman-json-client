@@ -33,6 +33,7 @@
 #include "agent.h"
 #include "dbus_json.h"
 #include "engine.h"
+#include "keys.h"
 
 #include "commands.h"
 
@@ -94,7 +95,7 @@ static void call_return_list(DBusMessageIter *iter, const char *error,
 			json_object_array_add(array, json_object_new_string(user_data));
 
 		json_object_array_add(array, json_object_new_string(error));
-		json_object_object_add(res, DBUS_JSON_ERROR_KEY, array);
+		json_object_object_add(res, key_dbus_json_error_key, array);
 		jerror = TRUE;
 
 	} else {
@@ -172,28 +173,28 @@ static int cmd_disable(struct json_object *jobj)
 
 int __cmd_state(void)
 {
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE,
-			CONNMAN_PATH, "net.connman.Manager", "GetProperties",
+	return __connman_dbus_method_call(connection, key_connman_service,
+			key_connman_path, "net.connman.Manager", "GetProperties",
 			call_return_list, NULL, NULL, NULL);
 }
 
 int __cmd_services(void)
 {
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE,
-			CONNMAN_PATH, "net.connman.Manager", "GetServices",
+	return __connman_dbus_method_call(connection, key_connman_service,
+			key_connman_path, "net.connman.Manager", "GetServices",
 			call_return_list, NULL, NULL, NULL);
 }
 
 int __cmd_technologies(void)
 {
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE,
-			CONNMAN_PATH, "net.connman.Manager", "GetTechnologies",
+	return __connman_dbus_method_call(connection, key_connman_service,
+			key_connman_path, "net.connman.Manager", "GetTechnologies",
 			call_return_list, NULL,	NULL, NULL);
 }
 
 int __cmd_connect_full_name(const char *serv_dbus_name)
 {
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE,
+	return __connman_dbus_method_call(connection, key_connman_service,
 			serv_dbus_name, "net.connman.Service", "Connect",
 			call_return_list, NULL, NULL, NULL);
 }
@@ -211,7 +212,7 @@ static int cmd_scan(struct json_object *jobj)
 			"/net/connman/technology/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE,
+	return __connman_dbus_method_call(connection, key_connman_service,
 			path, "net.connman.Technology", "Scan",
 			call_return_list_free, path, NULL, NULL);
 }
@@ -232,7 +233,7 @@ static int cmd_connect(struct json_object *jobj)
 			"/net/connman/service/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE, path,
+	return __connman_dbus_method_call(connection, key_connman_service, path,
 			"net.connman.Service", "Connect", call_return_list_free,
 			path, NULL, NULL);
 }
@@ -253,7 +254,7 @@ static int cmd_disconnect(struct json_object *jobj)
 			"/net/connman/service/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE, path,
+	return __connman_dbus_method_call(connection, key_connman_service, path,
 			"net.connman.Service", "Disconnect",
 			call_return_list_free, path, NULL, NULL);
 }
@@ -274,7 +275,7 @@ static int cmd_remove(struct json_object *jobj)
 			"/net/connman/service/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, CONNMAN_SERVICE, path,
+	return __connman_dbus_method_call(connection, key_connman_service, path,
 			"net.connman.Service", "Remove", call_return_list_free,
 			path, NULL, NULL);
 }
@@ -604,7 +605,7 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 			json_object_new_string(path));
 	json_object_object_add(res, "data", __connman_dbus_to_json(&iter));
 
-	json_object_object_add(res, DBUS_JSON_SIGNAL_KEY, sig_name);
+	json_object_object_add(res, key_dbus_json_signal_key, sig_name);
 	json_object_get(res);
 
 	commands_signal(res);

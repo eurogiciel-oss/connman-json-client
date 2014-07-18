@@ -20,14 +20,6 @@
 #ifndef __CONNMAN_DBUS_JSON_H
 #define __CONNMAN_DBUS_JSON_H
 
-#define DBUS_JSON_SUCCESS_KEY "OK"
-#define DBUS_JSON_ERROR_KEY "ERROR"
-#define DBUS_JSON_AGENT_ERROR_KEY "ERROR Agent"
-#define DBUS_JSON_AGENT_MSG_KEY "MSG Agent"
-#define DBUS_JSON_SIGNAL_KEY "SIGNAL"
-#define CONNMAN_SERVICE   "net.connman"
-#define CONNMAN_PATH      "/"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

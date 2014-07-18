@@ -109,7 +109,8 @@ static void engine_agent_error_cb(struct json_object *data)
 	engine_callback(-ENOSYS, NULL);
 }
 
-/* dbus_name in technologies or services
+/*
+ * dbus_name in technologies or services
  * dbus_name -> [ dbus_name, { dict } ]
  */
 static struct json_object *search_technology_or_service(struct json_object *ressource,
@@ -151,8 +152,8 @@ static bool has_service(const char *cmd)
 
 /*
  {
-	"command_name": <cmd_name>,
-	"data": <data>
+	"command": <cmd_name>,
+	"cmd_data": <data>
  }
  */
 static struct json_object* coating(const char *cmd_name,
@@ -161,9 +162,9 @@ static struct json_object* coating(const char *cmd_name,
 	struct json_object *res = json_object_new_object();
 	struct json_object *tmp = json_object_get(data);
 
-	json_object_object_add(res, "command_name",
+	json_object_object_add(res, key_command,
 			json_object_new_string(cmd_name));
-	json_object_object_add(res, "data", tmp);
+	json_object_object_add(res, key_command_data, tmp);
 
 	return res;
 }
@@ -185,8 +186,8 @@ static int get_technologies(struct json_object *jobj)
 
 /*
  {
- 	"command_name": "get_home_page",
-	"data": {
+ 	"command": "get_home_page",
+	"cmd_data": {
 		"state": {
 			...
 		},
@@ -346,12 +347,12 @@ static bool command_data_is_clean(struct json_object *jobj, int cmd_pos)
 }
 
 /*
- the expected json:
+  expected json:
   {
   	"interface": STRING
-	"path": STRING (dbus name)
+	"path": STRING (dbus short name)
 	"SIGNAL": STRING
-	optional "data": OBJECT
+	"cmd_data": OBJECT
   }
 */
 static void engine_commands_sig(struct json_object *jobj)
@@ -373,9 +374,9 @@ static void engine_commands_sig(struct json_object *jobj)
 	else
 		pos = 2;
 
-	json_object_object_get_ex(jobj, "data", &data);
+	json_object_object_get_ex(jobj, key_command_data, &data);
 	json_object_object_get_ex(jobj, "path", &path);
-	json_object_object_get_ex(jobj, DBUS_JSON_SIGNAL_KEY, &sig_name);
+	json_object_object_get_ex(jobj, key_dbus_json_signal_key, &sig_name);
 	sig_name_str = json_object_get_string(sig_name);
 
 	subscribed_to[pos].react_to_sig(interface, path, data, sig_name_str);
@@ -552,7 +553,7 @@ int engine_query(struct json_object *jobj)
 	if (!command_str || (cmd_pos = command_exist(command_str)) < 0)
 		return -EINVAL;
 	
-	json_object_object_get_ex(jobj, ENGINE_KEY_CMD_DATA, &jcmd_data);
+	json_object_object_get_ex(jobj, key_command_data, &jcmd_data);
 
 	if (jcmd_data != NULL && !command_data_is_clean(jcmd_data, cmd_pos))
 		return -EINVAL;

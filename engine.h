@@ -22,9 +22,6 @@
 
 #include "agent.h"
 
-#define ENGINE_KEY_COMMAND "command"
-#define ENGINE_KEY_CMD_DATA "cmd_data"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

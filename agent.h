@@ -20,9 +20,9 @@
 #ifndef __CONNMAN_AGENT_H
 #define __CONNMAN_AGENT_H
 
-#include "dbus_helpers.h"
+#include <stdbool.h>
 
-#define AGENT_INTERFACE      "net.connman.Agent"
+#include "dbus_helpers.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,13 +30,16 @@ extern "C" {
 
 struct agent_data {
 	char *interface;
-	_Bool registered;
+	bool registered;
 	DBusMessage *message;
 	DBusMessage *reply;
 	DBusMethodFunction pending_function;
 };
 
 struct agent_data;
+
+extern void (*agent_callback)(struct json_object *data, struct agent_data *request);
+extern void (*agent_error_callback)(struct json_object *data);
 
 int __connman_agent_register(DBusConnection *connection);
 

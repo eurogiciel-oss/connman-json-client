@@ -24,8 +24,6 @@
 #include <json/json.h>
 
 #define TIMEOUT           60000
-#define CONNMAN_SERVICE   "net.connman"
-#define CONNMAN_PATH      "/"
 
 #ifdef __cplusplus
 extern "C" {

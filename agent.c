@@ -31,6 +31,7 @@
 
 #include "dbus_helpers.h"
 #include "dbus_json.h"
+#include "keys.h"
 
 #include "agent.h"
 
@@ -61,7 +62,7 @@ static struct json_object* format_agent_error(const char *error,
 
 	res = json_object_new_object();
 
-	json_object_object_add(res, DBUS_JSON_AGENT_ERROR_KEY,
+	json_object_object_add(res, key_dbus_json_agent_error_key,
 			json_object_new_string(error));
 	json_object_object_add(res, "service", json_object_new_string(service));
 
@@ -96,7 +97,7 @@ static struct json_object* format_agent_msg(const char *msg,
 
 	res = json_object_new_object();
 
-	json_object_object_add(res, DBUS_JSON_AGENT_MSG_KEY,
+	json_object_object_add(res, key_dbus_json_agent_msg_key,
 		json_object_new_string(msg));
 	json_object_object_add(res, "service", json_object_new_string(service));
 	json_object_object_add(res, "data", data);
@@ -105,7 +106,7 @@ static struct json_object* format_agent_msg(const char *msg,
 }
 
 static struct agent_data agent_request = {
-	AGENT_INTERFACE,
+	key_agent_interface,
 };
 
 static char *strip_path(char *path)
@@ -336,7 +337,7 @@ void __connman_agent_unregister(DBusConnection *connection, void *user_data)
 		return;
 	}
 
-	msg = dbus_message_new_method_call(CONNMAN_SERVICE, CONNMAN_PATH,
+	msg = dbus_message_new_method_call(key_connman_service, key_connman_path,
 			"net.connman.Manager", "UnregisterAgent");
 
 	if (!msg)
@@ -413,7 +414,7 @@ int __connman_agent_register(DBusConnection *connection)
 				&agent_table, NULL))
 		return -ENOMEM;
 
-	msg = dbus_message_new_method_call(CONNMAN_SERVICE, CONNMAN_PATH,
+	msg = dbus_message_new_method_call(key_connman_service, key_connman_path,
 			"net.connman.Manager", "RegisterAgent");
 
 	if (!msg)
