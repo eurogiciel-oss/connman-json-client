@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "json_utils.h"
 
@@ -161,4 +162,21 @@ const char* __json_get_command_str(struct json_object *jobj)
 		return get_string_from_jobj(cmd);
 
 	return NULL;
+}
+
+/*
+ * This get the last token ('/') of str.
+ * Don't forget to free the return value.
+ */
+char* __extract_dbus_short_name(const char *str)
+{
+	char *last_token = strrchr(str, '/'), *res;
+
+	if (!last_token)
+		return NULL;
+
+	last_token++;
+	res = strdup(last_token);
+
+	return res;
 }

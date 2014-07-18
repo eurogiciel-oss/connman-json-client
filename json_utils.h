@@ -31,6 +31,8 @@ bool __json_type_dispatch(struct json_object *jobj,
 
 const char* __json_get_command_str(struct json_object *jobj);
 
+char* __extract_dbus_short_name(const char *str);
+
 #ifdef __cplusplus
 }
 #endif

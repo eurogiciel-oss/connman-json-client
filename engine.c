@@ -202,10 +202,14 @@ static int get_home_page(struct json_object *jobj)
 	struct json_object *res;
 
 	res = json_object_new_object();
-	json_object_object_add(res, key_state, state);
-	json_object_object_add(res, key_technologies, technologies);
+	json_object_object_add(res, key_state, json_object_get(state));
+	json_object_object_add(res, key_technologies, json_object_get(technologies));
 
 	engine_callback(0, coating("get_home_page", res));
+
+	// coating increment ref count of res, but creating a new object already
+	// increment the ref count of res
+	json_object_put(res);
 
 	return -EINPROGRESS;
 }
@@ -274,6 +278,7 @@ static int get_services_from_tech(struct json_object *jobj)
 	json_object_object_add(res, "services", res_serv);
 	json_object_object_add(res, "technology", res_tech);
 	engine_callback(0, coating("get_services_from_tech", res));
+	json_object_put(res);
 
 	return -EINPROGRESS;
 }
@@ -382,7 +387,7 @@ static void engine_commands_sig(struct json_object *jobj)
 	subscribed_to[pos].react_to_sig(interface, path, data, sig_name_str);
 
 	if (subscribed_to[pos].client_subscribed)
-		engine_callback(12345, jobj); // TODO modify / normalize
+		engine_callback(12345, jobj); // ToDo modify / normalize
 }
 
 static void react_to_sig_service(struct json_object *interface,

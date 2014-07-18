@@ -57,21 +57,26 @@
  */
 extern int nb_items;
 extern int nb_fields;
+extern struct context_info context;
 
-void print_services_for_tech(struct userptr_data *data);
-void connect_to_service(struct userptr_data *data);
+void print_services_for_tech();
+void connect_to_service();
 
 void print_home_page(void);
-void exec_back(void);
+void exec_refresh(void);
 
 static struct {
-	void (*func)(struct userptr_data *data);
-	void (*func_free)();
-	void (*func_back)();
+	void (*func)(); // What to do on action
+	void (*func_free)(); // Free elements for the current_context
+	void (*func_back)(); // What to do on 'Esc'
+	void (*func_refresh)(); // Refresh the current_context
 } context_actions[] = {
-	{ print_services_for_tech, __renderers_free_home_page, print_home_page }, // CONTEXT_HOME
-	{ NULL, __renderers_free_service_config, print_home_page}, // CONTEXT_SERVICE_CONFIG
-	{ connect_to_service, __renderers_free_services, print_home_page }, // CONTEXT_SERVICES
+	{ print_services_for_tech, __renderers_free_home_page, print_home_page,
+		print_home_page }, // CONTEXT_HOME
+	{ NULL, __renderers_free_service_config, print_home_page,
+		print_services_for_tech }, // CONTEXT_SERVICE_CONFIG
+	{ connect_to_service, __renderers_free_services, print_home_page,
+		print_services_for_tech }, // CONTEXT_SERVICES
 };
 
 void __connman_callback_ended(void)
@@ -82,21 +87,20 @@ void __connman_callback_ended(void)
 
 void stop_loop(int signum)
 {
-	printf("[*] @stop_loop got called ");
 	loop_quit();
 
-	if (context_actions[current_context].func_free)
-		context_actions[current_context].func_free();
+	if (context_actions[context.current_context].func_free)
+		context_actions[context.current_context].func_free();
 
 	engine_terminate();
+	free(context.serv);
+	free(context.tech);
 }
 
 void main_callback(int status, struct json_object *jobj)
 {
 	struct json_object *data, *cmd_tmp, *error;
 	const char *cmd_name;
-
-	//assert(status == 0);
 
 	json_object_object_get_ex(jobj, "ERROR", &error);
 	if (error) {
@@ -108,18 +112,14 @@ void main_callback(int status, struct json_object *jobj)
 
 	/* get the main object items */
 	json_object_object_get_ex(jobj, key_command, &cmd_tmp);
-	//assert(cmd_tmp != NULL);
 	json_object_object_get_ex(jobj, key_command_data, &data);
 	cmd_name = json_object_get_string(cmd_tmp);
-	//assert(cmd_name != NULL);
 
 	werase(win_body);
 	box(win_body, 0, 0);
 
 	if (!cmd_name) {
-		// TODO improve
-		__ncurses_print_info_in_footer(false, "Got a callback\n");
-		exec_back();
+		exec_refresh();
 	} else {
 
 		/* dispatch according to the command name */
@@ -144,13 +144,12 @@ void print_home_page(void)
 	struct json_object *cmd;
 
 	werase(win_footer);
-	__ncurses_print_info_in_footer(false, "asking for 'get_home_page'\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
 	engine_query(cmd);
 }
 
-void print_services_for_tech(struct userptr_data *data)
+void print_services_for_tech()
 {
 	struct json_object *cmd, *tmp;
 
@@ -160,19 +159,16 @@ void print_services_for_tech(struct userptr_data *data)
 	json_object_object_add(cmd, key_command,
 			json_object_new_string("get_services_from_tech"));
 	json_object_object_add(tmp, "technology",
-			json_object_new_string(data->dbus_name));
+			json_object_new_string(context.tech->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
-
-	mvwprintw(win_footer, 1, 1, "[INFO] 'Esc' to get back\n");
-	__ncurses_print_info_in_footer(false, "asking for "
-			"'get_services_from_tech'\n");
+	__ncurses_print_info_in_footer(false, "'Esc' to get back\n");
 
 	if (engine_query(cmd) == -EINVAL)
 		__ncurses_print_info_in_footer(true, "@print_services_for_tech:"
 				"invalid argument/value");
 }
 
-void connect_to_service(struct userptr_data *data)
+void connect_to_service()
 {
 	struct json_object *cmd, *tmp;
 
@@ -182,32 +178,53 @@ void connect_to_service(struct userptr_data *data)
 	json_object_object_add(cmd, key_command,
 			json_object_new_string("connect"));
 	json_object_object_add(tmp, "service",
-			json_object_new_string(data->dbus_name));
+			json_object_new_string(context.serv->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
-
-	__ncurses_print_info_in_footer(false, "asking for "
-			"'connect'\n");
 
 	if (engine_query(cmd) == -EINVAL)
 		__ncurses_print_info_in_footer(true, "@connect_to_service:"
 				"invalid argument/value");
+	else
+		context.current_context = CONTEXT_SERVICE_CONFIG;
+}
+
+void exec_refresh()
+{
+	context_actions[context.current_context].func_free();
+	context_actions[context.current_context].func_refresh();
 }
 
 void exec_action(struct userptr_data *data)
 {
-	struct userptr_data tmp = *data;
-	tmp.dbus_name = strdup(data->dbus_name);
+	switch (context.current_context) {
+		case CONTEXT_SERVICES:
+			context.serv->dbus_name = strdup(data->dbus_name);
+			break;
 
-	context_actions[current_context].func_free();
-	context_actions[current_context].func(&tmp);
+		case CONTEXT_HOME:
+			context.tech->dbus_name = strdup(data->dbus_name);
+			break;
 
-	free(tmp.dbus_name);
+		default:
+			break;
+	}
+
+	context_actions[context.current_context].func_free();
+	context_actions[context.current_context].func();
 }
 
 void exec_back(void)
 {
-	context_actions[current_context].func_free();
-	context_actions[current_context].func_back();
+	if (context.serv && context.serv->dbus_name)
+		free(context.serv->dbus_name);
+
+	if (context.tech && context.tech->dbus_name)
+		free(context.tech->dbus_name);
+
+	context.serv->dbus_name = NULL;
+	context.tech->dbus_name = NULL;
+	context_actions[context.current_context].func_free();
+	context_actions[context.current_context].func_back();
 }
 
 void exec_action_context_home(int ch)
@@ -293,9 +310,14 @@ void ncurses_action(void)
 {
 	int ch = wgetch(win_body);
 
+	if (ch == KEY_F(1)) {
+		stop_loop(0);
+		return;
+	}
+
 	if (ch == 27) {
 
-		if (current_context == CONTEXT_HOME)
+		if (context.current_context == CONTEXT_HOME)
 			__ncurses_print_info_in_footer(false, "^C to quit\n");
 		else
 			exec_back();
@@ -303,7 +325,12 @@ void ncurses_action(void)
 		return;
 	}
 
-	switch (current_context) {
+	if (ch == KEY_F(5)) {
+		exec_refresh();
+		return;
+	}
+
+	switch (context.current_context) {
 		case CONTEXT_HOME:
 			exec_action_context_home(ch);
 			break;
@@ -355,10 +382,13 @@ int main(void)
 	wnoutrefresh(win_footer);
 	doupdate();
 
-	current_context = CONTEXT_HOME;
+	context.current_context = CONTEXT_HOME;
+	context.serv = malloc(sizeof(struct userptr_data));
+	assert(context.serv != NULL);
+	context.tech = malloc(sizeof(struct userptr_data));
+	assert(context.tech != NULL);
 
 	// get_home_page (and render it)
-	__ncurses_print_info_in_footer(false, "asking for 'get_home_page'\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
 	engine_query(cmd);

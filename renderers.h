@@ -30,10 +30,6 @@
 extern "C" {
 #endif
 
-struct userptr_data {
-	char *dbus_name;
-};
-
 extern WINDOW *win_header, *win_footer, *win_body, *inner;
 extern ITEM **my_items;
 extern MENU *my_menu;
@@ -42,8 +38,17 @@ extern FORM *my_form;
 extern int win_body_lines;
 extern int nb_pages;
 
+struct userptr_data {
+	char *dbus_name;
+};
+
 typedef enum {CONTEXT_HOME, CONTEXT_SERVICE_CONFIG, CONTEXT_SERVICES} context_t;
-extern context_t current_context;
+
+struct context_info {
+	context_t current_context;
+	struct userptr_data *serv;
+	struct userptr_data *tech;
+};
 
 void __renderers_home_page(struct json_object *jobj);
 

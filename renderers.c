@@ -43,25 +43,7 @@ FIELD **field;
 FORM *my_form;
 int win_body_lines;
 int nb_pages;
-context_t current_context;
-
-
-/*
- * This get the last token ('/') of str.
- * Don't forget to free the return value.
- */
-static char* extract_dbus_short_name(const char *str)
-{
-	char *last_token = strrchr(str, '/'), *res;
-
-	if (!last_token)
-		return NULL;
-
-	last_token++;
-	res = strdup(last_token);
-
-	return res;
-}
+struct context_info context;
 
 /*
  [
@@ -134,7 +116,7 @@ static void renderers_technologies(struct json_object *jobj)
 				desc_base_sub, k_powered, k_connected);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 		tech_short_name =
-			extract_dbus_short_name(json_object_get_string(tech_name));
+			__extract_dbus_short_name(json_object_get_string(tech_name));
 		my_items[i] = new_item(tech_short_name, desc);
 
 		data = malloc(sizeof(struct userptr_data *));
@@ -175,7 +157,7 @@ static void renderers_state(struct json_object *jobj)
 	mvwprintw(win_header, 1, 1, "Connman ncurses UI");
 	// 38 = len(string) + 1
 	mvwprintw(win_header, 1, COLS-38, "State: %-6s%-6sOfflineMode: %-5s",
-			state_str, "", json_object_to_json_string(offline_mode));
+			state_str, "", json_object_get_string(offline_mode));
 	wrefresh(win_header);
 }
 
@@ -191,27 +173,25 @@ void __renderers_home_page(struct json_object *jobj)
 	renderers_state(state);
 	renderers_technologies(tech);
 
-	current_context = CONTEXT_HOME;
+	context.current_context = CONTEXT_HOME;
 }
 
 void __renderers_free_home_page(void)
 {
 	int i;
-	ITEM *item;
 	struct userptr_data *data;
 
 	unpost_menu(my_menu);
 
 	for (i = 0; i < nb_items; i++) {
-		item = my_items[i];
-		free((void *) item->description.str);
-		free((void *) item->name.str);
+		free((void *) my_items[i]->description.str);
+		free((void *) my_items[i]->name.str);
 
-		data = item_userptr(item);
+		data = item_userptr(my_items[i]);
 		free((void *) data->dbus_name);
 		free(data);
 
-		free_item(item);
+		free_item(my_items[i]);
 	}
 
 	free_menu(my_menu);
@@ -409,12 +389,15 @@ static void renderers_services_wifi(struct json_object *jobj)
 		serv_dict = json_object_array_get_idx(sub_array, 1);
 
 		json_object_object_get_ex(serv_dict, "Name", &tmp);
+		assert(tmp != NULL);
 		essid_str = json_object_get_string(tmp);
 
 		json_object_object_get_ex(serv_dict, "Security", &tmp);
+		assert(tmp != NULL);
 		security_str = json_object_get_string(tmp);
 
 		json_object_object_get_ex(serv_dict, "Strength", &tmp);
+		assert(tmp != NULL);
 		signal_strength = (uint8_t) json_object_get_int(tmp);
 
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
@@ -451,7 +434,7 @@ static void renderers_services(struct json_object *jobj)
 	array = json_object_array_get_idx(jobj, 0);
 	dbus_long_name = json_object_array_get_idx(array, 0);
 
-	dbus_short_name = extract_dbus_short_name(json_object_get_string(dbus_long_name));
+	dbus_short_name = __extract_dbus_short_name(json_object_get_string(dbus_long_name));
 	my_items = calloc(nb_items+1, sizeof(ITEM *));
 	assert(my_items != NULL);
 	
@@ -482,7 +465,6 @@ void __renderers_free_services(void)
 {
 	int i;
 	struct userptr_data *data;
-	ITEM *item;
 
 	if (nb_items == 0)
 		return;
@@ -490,12 +472,11 @@ void __renderers_free_services(void)
 	unpost_menu(my_menu);
 
 	for (i = 0; i < nb_items; i++) {
-		item = my_items[i];
 		//free((void *) item->name.str);
-		data = item_userptr(item);
+		data = item_userptr(my_items[i]);
 		free((void *) data->dbus_name);
 		free(data);
-		free_item(item);
+		free_item(my_items[i]);
 	}
 
 	free_menu(my_menu);
@@ -516,12 +497,12 @@ void __renderers_services(struct json_object *jobj)
 		// propose modifications of service parameters
 		renderers_service_config(tech_array,
 				json_object_array_get_idx(serv_array, 0));
-		current_context = CONTEXT_SERVICE_CONFIG;
+		context.current_context = CONTEXT_SERVICE_CONFIG;
 		__renderers_services_config_paging();
 	} else {
 		// propose to connect to one service
 		renderers_services(serv_array);
-		current_context = CONTEXT_SERVICES;
+		context.current_context = CONTEXT_SERVICES;
 	}
 }
 
