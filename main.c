@@ -97,6 +97,66 @@ void stop_loop(int signum)
 	free(context.tech);
 }
 
+void exec_refresh()
+{
+	context_actions[context.current_context].func_free();
+	context_actions[context.current_context].func_refresh();
+}
+
+void exec_action(struct userptr_data *data)
+{
+	switch (context.current_context) {
+		case CONTEXT_SERVICES:
+			context.serv->dbus_name = strdup(data->dbus_name);
+			break;
+
+		case CONTEXT_HOME:
+			context.tech->dbus_name = strdup(data->dbus_name);
+			break;
+
+		default:
+			break;
+	}
+
+	context_actions[context.current_context].func_free();
+	context_actions[context.current_context].func();
+}
+
+void exec_back(void)
+{
+	if (context.serv && context.serv->dbus_name)
+		free(context.serv->dbus_name);
+
+	if (context.tech && context.tech->dbus_name)
+		free(context.tech->dbus_name);
+
+	context.serv->dbus_name = NULL;
+	context.tech->dbus_name = NULL;
+	context_actions[context.current_context].func_free();
+	context_actions[context.current_context].func_back();
+}
+
+void action_on_signal(struct json_object *jobj)
+{
+	struct json_object *sig_path, *sig_data;
+	bool is_tech_removed, is_current_tech;
+
+	json_object_object_get_ex(jobj, key_command_path, &sig_path);
+	json_object_object_get_ex(jobj, key_command_data, &sig_data);
+	
+	is_tech_removed = strncmp("TechnologyRemoved", json_object_get_string(sig_path), 50) == 0;
+
+	if (context.tech->dbus_name == NULL)
+		is_current_tech = false;
+	else
+		is_current_tech = strncmp(context.tech->dbus_name, json_object_get_string(sig_data), 256) == 0;
+
+	if (is_tech_removed && is_current_tech)
+		exec_back();
+	else
+		exec_refresh();
+}
+
 void main_callback(int status, struct json_object *jobj)
 {
 	struct json_object *data, *cmd_tmp, *error;
@@ -119,7 +179,7 @@ void main_callback(int status, struct json_object *jobj)
 	box(win_body, 0, 0);
 
 	if (!cmd_name) {
-		exec_refresh();
+		action_on_signal(jobj);
 	} else {
 
 		/* dispatch according to the command name */
@@ -186,45 +246,6 @@ void connect_to_service()
 				"invalid argument/value");
 	else
 		context.current_context = CONTEXT_SERVICE_CONFIG;
-}
-
-void exec_refresh()
-{
-	context_actions[context.current_context].func_free();
-	context_actions[context.current_context].func_refresh();
-}
-
-void exec_action(struct userptr_data *data)
-{
-	switch (context.current_context) {
-		case CONTEXT_SERVICES:
-			context.serv->dbus_name = strdup(data->dbus_name);
-			break;
-
-		case CONTEXT_HOME:
-			context.tech->dbus_name = strdup(data->dbus_name);
-			break;
-
-		default:
-			break;
-	}
-
-	context_actions[context.current_context].func_free();
-	context_actions[context.current_context].func();
-}
-
-void exec_back(void)
-{
-	if (context.serv && context.serv->dbus_name)
-		free(context.serv->dbus_name);
-
-	if (context.tech && context.tech->dbus_name)
-		free(context.tech->dbus_name);
-
-	context.serv->dbus_name = NULL;
-	context.tech->dbus_name = NULL;
-	context_actions[context.current_context].func_free();
-	context_actions[context.current_context].func_back();
 }
 
 void exec_action_context_home(int ch)
