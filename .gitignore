@@ -13,3 +13,5 @@ test_json_utils
 config.h
 config.h.in~
 stamp-h1
+*.swp
+*.log

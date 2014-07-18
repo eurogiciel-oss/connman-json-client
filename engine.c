@@ -362,7 +362,7 @@ static void engine_commands_sig(struct json_object *jobj)
 	json_bool exist;
 	int pos;
 
-	exist = json_object_object_get_ex(jobj, "interface", &interface);
+	exist = json_object_object_get_ex(jobj, key_command_interface, &interface);
 	assert(exist && interface != NULL);
 	interface_str = json_object_get_string(interface);
 	assert(interface_str != NULL);
@@ -375,7 +375,7 @@ static void engine_commands_sig(struct json_object *jobj)
 		pos = 2;
 
 	json_object_object_get_ex(jobj, key_command_data, &data);
-	json_object_object_get_ex(jobj, "path", &path);
+	json_object_object_get_ex(jobj, key_command_path, &path);
 	json_object_object_get_ex(jobj, key_dbus_json_signal_key, &sig_name);
 	sig_name_str = json_object_get_string(sig_name);
 

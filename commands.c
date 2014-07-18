@@ -599,11 +599,11 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 	dbus_message_iter_init(message, &iter);
 	res = json_object_new_object();
 
-	json_object_object_add(res, "interface",
+	json_object_object_add(res, key_command_interface,
 			json_object_new_string(interface));
-	json_object_object_add(res, "path",
+	json_object_object_add(res, key_command_path,
 			json_object_new_string(path));
-	json_object_object_add(res, "data", __connman_dbus_to_json(&iter));
+	json_object_object_add(res, key_command_data, __connman_dbus_to_json(&iter));
 
 	json_object_object_add(res, key_dbus_json_signal_key, sig_name);
 	json_object_get(res);

@@ -6,6 +6,8 @@ extern const char key_technologies[];
 
 extern const char key_command[];
 extern const char key_command_data[];
+extern const char key_command_path[];
+extern const char key_command_interface[];
 
 extern const char key_dbus_json_success_key[];
 extern const char key_dbus_json_error_key[];

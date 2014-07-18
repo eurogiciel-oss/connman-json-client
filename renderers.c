@@ -103,6 +103,10 @@ static void renderers_technologies(struct json_object *jobj)
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
+		
+		if (!sub_array)
+			continue;
+
 		tech_name = json_object_array_get_idx(sub_array, 0);
 		tech_dict = json_object_array_get_idx(sub_array, 1);
 

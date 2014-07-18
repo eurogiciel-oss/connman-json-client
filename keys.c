@@ -3,6 +3,8 @@ const char key_technologies[] = "technologies";
 
 const char key_command[] = "command";
 const char key_command_data[] = "cmd_data";
+const char key_command_path[] = "cmd_path";
+const char key_command_interface[] = "cmd_interface";
 
 const char key_dbus_json_success_key[] = "OK";
 const char key_dbus_json_error_key[] = "ERROR";
