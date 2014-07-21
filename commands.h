@@ -43,10 +43,12 @@ int __cmd_technologies(void);
 
 int __cmd_monitor(struct json_object *jobj);
 
+int __cmd_connect(const char *serv_dbus_name);
+
+int __cmd_disconnect(const char *serv_dbus_name);
+
 int __connman_command_dispatcher(DBusConnection *dbus_conn,
 	struct json_object *jobj);
-
-int __cmd_connect_full_name(const char *serv_dbus_name);
 
 #ifdef __cplusplus
 }

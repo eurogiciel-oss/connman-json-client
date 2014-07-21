@@ -196,6 +196,7 @@ void __renderers_free_home_page(void)
 
 	free_menu(my_menu);
 	free(my_items);
+	nb_items = 0;
 }
 
 /*
@@ -481,6 +482,7 @@ void __renderers_free_services(void)
 
 	free_menu(my_menu);
 	free(my_items);
+	nb_items = 0;
 }
 
 void __renderers_services(struct json_object *jobj)
@@ -511,10 +513,11 @@ void __renderers_free_service_config(void)
 	int i;
 
 	unpost_form(my_form);
-	free_form(my_form);
 
 	for (i = 0; i < nb_fields; i++)
 		free_field(field[i]);
 
+	free_form(my_form);
 	free(field);
+	nb_fields = 0;
 }

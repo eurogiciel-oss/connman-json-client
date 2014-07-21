@@ -64,14 +64,13 @@ static void react_to_sig_manager(struct json_object *interface,
 			const char *sig_name);
 
 static struct {
-	bool client_subscribed;
 	void (*react_to_sig)(struct json_object *interface,
 			struct json_object *path, struct json_object *data,
 			const char *sig_name);
 } subscribed_to[] = {
-	{ true, react_to_sig_service },	// Service
-	{ true, react_to_sig_technology },	// Technology
-	{ true, react_to_sig_manager },		// Manager
+	{ react_to_sig_service },	// Service
+	{ react_to_sig_technology },	// Technology
+	{ react_to_sig_manager },		// Manager
 };
 
 static void engine_commands_cb(struct json_object *data, json_bool is_error)
@@ -239,7 +238,7 @@ static struct json_object* get_services_matching_tech_type(const char
 					"ready", 256) == 0;
 
 			// Do we look for something we are connected to ?
-			// 	Yes -> is the service online / ready ?
+			//	Yes -> is the service online / ready ?
 			//		No -> continue search
 			//		Yes -> remember the service
 			if (is_connected && !(is_online || is_ready))
@@ -288,13 +287,46 @@ static int connect_to_service(struct json_object *jobj)
 	struct json_object *tmp;
 	const char *serv_dbus_name;
 
-	json_object_object_get_ex(jobj, "service", &tmp);
+	json_object_object_get_ex(jobj, key_service, &tmp);
 	serv_dbus_name = json_object_get_string(tmp);
 
 	if (!has_service(serv_dbus_name))
 		return -EINVAL;
 	
-	return __cmd_connect_full_name(serv_dbus_name);
+	return __cmd_connect(serv_dbus_name);
+}
+
+static int disconnect_technology(struct json_object *jobj)
+{
+	struct json_object *tmp, *serv, *tech, *tech_dict,
+			   *tech_type, *tech_co;
+	const char *tech_dbus_name, *tech_type_str, *serv_dbus_name;
+
+	json_object_object_get_ex(jobj, "technology", &tmp);
+	tech_dbus_name = json_object_get_string(tmp);
+	tech = get_technology(tech_dbus_name);
+
+	if (tech == NULL)
+		return -EINVAL;
+
+	tech_dict = json_object_array_get_idx(tech, 1);
+	json_object_object_get_ex(tech_dict, "Type", &tech_type);
+	tech_type_str = json_object_get_string(tech_type);
+	json_object_object_get_ex(tech_dict, "Connected", &tech_co);
+
+	serv = get_services_matching_tech_type(tech_type_str,
+			(json_object_get_boolean(tech_co) ? true : false));
+
+	if (serv == NULL || json_object_array_length(serv) != 1)
+		return -EINVAL;
+
+	tmp = json_object_array_get_idx(serv, 0);
+	serv_dbus_name = json_object_get_string(
+			json_object_array_get_idx(tmp, 0));
+
+	json_object_put(serv);
+
+	return __cmd_disconnect(serv_dbus_name);
 }
 
 static const struct {
@@ -314,6 +346,8 @@ static const struct {
 	"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ "connect", connect_to_service, true, {
 	"{ \"service\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+	{ "disconnect", disconnect_technology, true, {
+	"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ NULL, }, // this is a sentinel
 };
 
@@ -376,7 +410,7 @@ static void engine_commands_sig(struct json_object *jobj)
 		pos = 0;
 	else if (strcmp(interface_str, "Technology") == 0)
 		pos = 1;
-	else
+	else // Manager
 		pos = 2;
 
 	json_object_object_get_ex(jobj, key_command_data, &data);
@@ -386,8 +420,7 @@ static void engine_commands_sig(struct json_object *jobj)
 
 	subscribed_to[pos].react_to_sig(interface, path, data, sig_name_str);
 
-	if (subscribed_to[pos].client_subscribed)
-		engine_callback(12345, jobj); // ToDo modify / normalize
+	engine_callback(12345, jobj);
 }
 
 static void react_to_sig_service(struct json_object *interface,

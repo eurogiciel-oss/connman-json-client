@@ -204,6 +204,9 @@ void print_home_page(void)
 	struct json_object *cmd;
 
 	werase(win_footer);
+	__ncurses_print_info_in_footer(false, "'d' to disconnect, 'Return' for"
+			" details, 'F5' to force refresh");
+	__ncurses_print_info_in_footer2(false, "^C to quit");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
 	engine_query(cmd);
@@ -221,7 +224,8 @@ void print_services_for_tech()
 	json_object_object_add(tmp, "technology",
 			json_object_new_string(context.tech->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
-	__ncurses_print_info_in_footer(false, "'Esc' to get back\n");
+	__ncurses_print_info_in_footer(false, "");
+	__ncurses_print_info_in_footer2(false, "'Esc' to get back");
 
 	if (engine_query(cmd) == -EINVAL)
 		__ncurses_print_info_in_footer(true, "@print_services_for_tech:"
@@ -237,15 +241,33 @@ void connect_to_service()
 
 	json_object_object_add(cmd, key_command,
 			json_object_new_string("connect"));
-	json_object_object_add(tmp, "service",
+	json_object_object_add(tmp, key_service,
 			json_object_new_string(context.serv->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
 		__ncurses_print_info_in_footer(true, "@connect_to_service:"
-				"invalid argument/value");
-	else
-		context.current_context = CONTEXT_SERVICE_CONFIG;
+				" invalid argument/value");
+	
+	__ncurses_print_info_in_footer(false, "Connecting...");
+}
+
+void disconnect_of_service(struct userptr_data *data)
+{
+	struct json_object *cmd, *tmp;
+
+	cmd = json_object_new_object();
+	tmp = json_object_new_object();
+
+	json_object_object_add(cmd, key_command,
+			json_object_new_string("disconnect"));
+	json_object_object_add(tmp, "technology",
+			json_object_new_string(data->dbus_name));
+	json_object_object_add(cmd, key_command_data, tmp);
+
+	if (engine_query(cmd) == -EINVAL)
+		__ncurses_print_info_in_footer(true, "@disconnect_of_service:"
+				" invalid argument/value");
 }
 
 void exec_action_context_home(int ch)
@@ -259,6 +281,13 @@ void exec_action_context_home(int ch)
 
 		case KEY_DOWN:
 			menu_driver(my_menu, REQ_DOWN_ITEM);
+			break;
+
+		case 100: // 'd'
+			item = current_item(my_menu);
+			disconnect_of_service(item_userptr(item));
+			__ncurses_print_info_in_footer(false,
+					"Dis connecting...");
 			break;
 
 		case KEY_ENTER:
@@ -323,6 +352,7 @@ void exec_action_context_services(int ch)
 		case 10:
 			item = current_item(my_menu);
 			exec_action(item_userptr(item));
+			__ncurses_print_info_in_footer(false, "Connecting...");
 			break;
 	}
 }
@@ -339,7 +369,7 @@ void ncurses_action(void)
 	if (ch == 27) {
 
 		if (context.current_context == CONTEXT_HOME)
-			__ncurses_print_info_in_footer(false, "^C to quit\n");
+			__ncurses_print_info_in_footer2(false, "^C to quit");
 		else
 			exec_back();
 
@@ -413,6 +443,9 @@ int main(void)
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
 	engine_query(cmd);
+	__ncurses_print_info_in_footer(false, "'d' to disconnect, 'Return' for"
+			" details, 'F5' to force refresh");
+	__ncurses_print_info_in_footer2(false, "^C to quit");
 
 	loop_run(true);
 	loop_terminate();

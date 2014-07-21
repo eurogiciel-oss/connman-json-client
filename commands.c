@@ -192,10 +192,17 @@ int __cmd_technologies(void)
 			call_return_list, NULL,	NULL, NULL);
 }
 
-int __cmd_connect_full_name(const char *serv_dbus_name)
+int __cmd_connect(const char *serv_dbus_name)
 {
 	return __connman_dbus_method_call(connection, key_connman_service,
 			serv_dbus_name, "net.connman.Service", "Connect",
+			call_return_list, NULL, NULL, NULL);
+}
+
+int __cmd_disconnect(const char *serv_dbus_name)
+{
+	return __connman_dbus_method_call(connection, key_connman_service,
+			serv_dbus_name, "net.connman.Service", "Disconnect",
 			call_return_list, NULL, NULL, NULL);
 }
 
@@ -445,7 +452,7 @@ static int cmd_config(struct json_object *jobj)
 	dbus_bool_t dbus_bool;
 	struct json_object *options, *srvobj;
 
-	if (!json_object_object_get_ex(jobj, "service", &srvobj)) {
+	if (!json_object_object_get_ex(jobj, key_service, &srvobj)) {
 		call_return_list(NULL, "No 'service' set", "");
 		return -EINVAL;
 	}
@@ -789,17 +796,6 @@ int __connman_command_dispatcher(DBusConnection *dbus_conn,
 	else if (strcmp(command, "scan") == 0)
 		res = cmd_scan(data);
 
-	/*
-	else if (strcmp(command, "technologies") == 0)
-		res = cmd_technologies();
-
-	else if (strcmp(command, "services") == 0)
-		res = cmd_services();
-
-	else if (strcmp(command, "state") == 0)
-		res = cmd_state();
-	*/
-
 	else if (strcmp(command, "disable") == 0)
 		res = cmd_disable(data);
 
@@ -813,11 +809,6 @@ int __connman_command_dispatcher(DBusConnection *dbus_conn,
 		__connman_agent_unregister(connection, NULL);
 		res = 0;
 	}
-
-	/*
-	else if (strcmp(command, "monitor") == 0)
-		res = cmd_monitor(data);
-	*/
 
 	else {
 		res = -EINVAL;
