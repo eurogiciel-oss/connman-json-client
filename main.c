@@ -99,8 +99,77 @@ void stop_loop(int signum)
 
 void exec_refresh()
 {
+	ITEM *item;
+	FIELD *tmp_field;
+	struct userptr_data *tmp;
+
+	if (nb_fields != 0) {
+		tmp_field = current_field(my_form);
+		assert(tmp_field != NULL);
+		tmp = field_userptr(tmp_field);
+		context.cursor_id = strdup(tmp->dbus_name);
+	} else if (nb_items != 0) {
+		// We use the dbus_name as a unique key
+		item = current_item(my_menu);
+		assert(item != NULL);
+		tmp = item_userptr(item);
+		context.cursor_id = strdup(tmp->dbus_name);
+	}
+
 	context_actions[context.current_context].func_free();
 	context_actions[context.current_context].func_refresh();
+}
+
+/*
+ * Reset cursor position before refresh.
+ * We use a value put in userptr by the renderers, this value is the "true"
+ * dbus_name for menus and a "key" for forms.
+ * The key on form make it work but it isn't a great solution.
+ */
+void repos_cursor(void)
+{
+	int i, j, nb_active_fields;
+	struct userptr_data *tmp;
+	ITEM *item;
+
+	if (!context.cursor_id)
+		return;
+
+	if (nb_fields != 0) {
+		nb_active_fields = 0;
+
+		for (i = 0; i < nb_fields; i++) {
+			if (!(field_opts(field[i]) & O_ACTIVE))
+				continue;
+
+			nb_active_fields++;
+			tmp = field_userptr(field[i]);
+
+			if (strncmp(tmp->dbus_name, context.cursor_id, 256) == 0) {
+				for (j = 1; j < nb_active_fields; j++)
+					form_driver(my_form, REQ_NEXT_FIELD);
+
+				wrefresh(my_form->sub);
+				break;
+			}
+		}
+	} else if (nb_items != 0) {
+		for (i = 0; i < nb_items; i++) {
+			item = my_items[i];
+			tmp = item_userptr(item);
+
+			if (strncmp(context.cursor_id, tmp->dbus_name, 256) == 0) {
+				for (j = 0; j < i; j++)
+					menu_driver(my_menu, REQ_NEXT_ITEM);
+
+				wrefresh(my_menu->usersub);
+				break;
+			}
+		}
+	}
+
+	free(context.cursor_id);
+	context.cursor_id = NULL;
 }
 
 void exec_action(struct userptr_data *data)
@@ -143,7 +212,7 @@ void action_on_signal(struct json_object *jobj)
 
 	json_object_object_get_ex(jobj, key_command_path, &sig_path);
 	json_object_object_get_ex(jobj, key_command_data, &sig_data);
-	
+
 	is_tech_removed = strncmp("TechnologyRemoved", json_object_get_string(sig_path), 50) == 0;
 
 	if (context.tech->dbus_name == NULL)
@@ -248,7 +317,7 @@ void connect_to_service()
 	if (engine_query(cmd) == -EINVAL)
 		__ncurses_print_info_in_footer(true, "@connect_to_service:"
 				" invalid argument/value");
-	
+
 	__ncurses_print_info_in_footer(false, "Connecting...");
 }
 
@@ -287,7 +356,7 @@ void exec_action_context_home(int ch)
 			item = current_item(my_menu);
 			disconnect_of_service(item_userptr(item));
 			__ncurses_print_info_in_footer(false,
-					"Dis connecting...");
+					"Disconnecting...");
 			break;
 
 		case KEY_ENTER:
@@ -302,7 +371,6 @@ void exec_action_context_service_config(int ch)
 {
 	FIELD *field;
 	int cur_page = form_page(my_form);
-
 	switch (ch) {
 		case KEY_DOWN:
 			form_driver(my_form, REQ_NEXT_FIELD);
@@ -331,6 +399,17 @@ void exec_action_context_service_config(int ch)
 			field = current_field(my_form);
 			__ncurses_print_info_in_footer(false,
 					field_buffer(field, 0));
+			break;
+
+		case REQ_DEL_PREV:
+		case KEY_DC:
+		case KEY_BACKSPACE:
+			form_driver(my_form, REQ_DEL_PREV);
+			break;
+
+		default:
+			if ((unsigned) field_opts(current_field(my_form)) & O_EDIT)
+				form_driver(my_form, ch);
 			break;
 	}
 }
@@ -361,10 +440,12 @@ void ncurses_action(void)
 {
 	int ch = wgetch(win_body);
 
+	/*
 	if (ch == KEY_F(1)) {
 		stop_loop(0);
 		return;
 	}
+	*/
 
 	if (ch == 27) {
 
@@ -410,17 +491,18 @@ int main(void)
 	loop_init();
 
 	initscr();
+	assert(LINES >= 24 && COLS >= 80);
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
 
-	win_body_lines = LINES - 8;
-	
+	win_body_lines = LINES - 5;
+
 	// If you don't do this, the service config form won't be displayed
 	while (win_body_lines % 4 != 3)
 		win_body_lines--;
 
-	win_body = newwin(win_body_lines + 2, COLS, 2, 0);
+	win_body = newwin(win_body_lines + 2, COLS, 1, 0);
 	box(win_body, 0 , 0);
 	keypad(win_body, TRUE);
 
@@ -428,6 +510,7 @@ int main(void)
 	win_footer = newwin(2, COLS, LINES-2, 0);
 
 	// Print all windows, according to the man it's more efficient than 3
+	// wrefresh
 	wnoutrefresh(win_header);
 	wnoutrefresh(win_body);
 	wnoutrefresh(win_footer);

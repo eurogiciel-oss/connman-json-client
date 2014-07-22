@@ -48,6 +48,7 @@ struct context_info {
 	context_t current_context;
 	struct userptr_data *serv;
 	struct userptr_data *tech;
+	char *cursor_id;
 };
 
 void __renderers_home_page(struct json_object *jobj);
