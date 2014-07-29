@@ -26,6 +26,16 @@ const char key_command_data[] = "cmd_data";
 const char key_command_path[] = "cmd_path";
 const char key_command_interface[] = "cmd_interface";
 
+const char key_engine_get_state[] = "get_state";
+const char key_engine_get_services[] = "get_services";
+const char key_engine_get_technologies[] = "get_technologies";
+const char key_engine_get_home_page[] = "get_home_page";
+const char key_engine_get_services_from_tech[] = "get_services_from_tech";
+const char key_engine_connect[] = "connect";
+const char key_engine_disconnect[] = "disconnect";
+const char key_engine_agent_response[] = "agent_response";
+const char key_engine_agent_cancel[] = "agent_cancel";
+
 const char key_dbus_json_success_key[] = "OK";
 const char key_dbus_json_error_key[] = "ERROR";
 const char key_dbus_json_agent_error_key[] = "ERROR Agent";

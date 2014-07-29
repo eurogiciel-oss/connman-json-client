@@ -17,41 +17,11 @@
  *
  */
 
-#ifndef __CONNMAN_AGENT_H
-#define __CONNMAN_AGENT_H
+#ifndef __JSON_REGEX_H
+#define __JSON_REGEX_H
 
-#include <stdbool.h>
+void generate_trusted_json(void);
 
-#include "dbus_helpers.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct agent_data {
-	char *interface;
-	bool registered;
-	DBusMessage *message;
-	DBusMessage *reply;
-	DBusMethodFunction pending_function;
-};
-
-struct agent_data;
-
-extern void (*agent_callback)(struct json_object *data, struct agent_data *request);
-extern void (*agent_error_callback)(struct json_object *data);
-
-int __connman_agent_register(DBusConnection *connection);
-
-void __connman_agent_unregister(DBusConnection *connection, void *user_data);
-
-int __connman_json_to_agent_response(struct json_object *jobj,
-		struct agent_data *request);
-
-void agent_cancel_request(void);
-
-#ifdef __cplusplus
-}
-#endif
+void free_trusted_json(void);
 
 #endif

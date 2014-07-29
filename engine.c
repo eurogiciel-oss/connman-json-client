@@ -33,10 +33,14 @@
 #include "loop.h"
 #include "dbus_json.h"
 #include "keys.h"
+#include "json_regex.h"
 
 #include "engine.h"
 
 DBusConnection *connection;
+struct json_object *jregex_agent_response;
+
+static DBusConnection *agent_dbus_conn;
 
 void (*engine_callback)(int status, struct json_object *jobj) = NULL;
 
@@ -51,7 +55,6 @@ static struct json_object *technologies;
 
 /* the recorded services as given by connman-json */
 static struct json_object *services;
-
 
 static void react_to_sig_service(struct json_object *interface,
 			struct json_object *path, struct json_object *data,
@@ -70,8 +73,10 @@ static struct {
 } subscribed_to[] = {
 	{ react_to_sig_service },	// Service
 	{ react_to_sig_technology },	// Technology
-	{ react_to_sig_manager },		// Manager
+	{ react_to_sig_manager },	// Manager
 };
+
+static struct agent_data *agent_data_cache;
 
 static void engine_commands_cb(struct json_object *data, json_bool is_error)
 {
@@ -79,7 +84,7 @@ static void engine_commands_cb(struct json_object *data, json_bool is_error)
 		case INIT_STATE:
 			state = data;
 			break;
-		
+
 		case INIT_TECHNOLOGIES:
 			technologies = data;
 			break;
@@ -90,7 +95,7 @@ static void engine_commands_cb(struct json_object *data, json_bool is_error)
 
 		default:
 			if (data)
-				engine_callback((is_error ? 1 : 0), data);
+				engine_callback((is_error ? -1 : 0), data);
 			break;
 	}
 
@@ -100,12 +105,42 @@ static void engine_commands_cb(struct json_object *data, json_bool is_error)
 
 static void engine_agent_cb(struct json_object *data, struct agent_data *request)
 {
-	engine_callback(-ENOSYS, NULL);
+	struct json_object *res;
+
+	if (agent_data_cache != NULL) {
+		res = json_object_new_object();
+		json_object_object_add(res, key_dbus_json_agent_error_key,
+				json_object_new_string("Already handling an "
+				"agent request"));
+		engine_callback(-ENOMEM, res);
+		return;
+	}
+
+	agent_data_cache = request;
+	engine_callback(0, data);
 }
 
 static void engine_agent_error_cb(struct json_object *data)
 {
-	engine_callback(-ENOSYS, NULL);
+	engine_callback(-1, data);
+}
+
+static int agent_response(struct json_object *data)
+{
+	int res;
+
+	res = __connman_json_to_agent_response(data, agent_data_cache);
+	agent_data_cache = NULL;
+
+	return res;
+}
+
+static int agent_cancel(struct json_object *data)
+{
+	agent_cancel_request();
+	agent_data_cache = NULL;
+
+	return -EINPROGRESS;
 }
 
 /*
@@ -185,7 +220,7 @@ static int get_technologies(struct json_object *jobj)
 
 /*
  {
- 	"command": "get_home_page",
+	"command": "get_home_page",
 	"cmd_data": {
 		"state": {
 			...
@@ -292,7 +327,7 @@ static int connect_to_service(struct json_object *jobj)
 
 	if (!has_service(serv_dbus_name))
 		return -EINVAL;
-	
+
 	return __cmd_connect(serv_dbus_name);
 }
 
@@ -329,27 +364,54 @@ static int disconnect_technology(struct json_object *jobj)
 	return __cmd_disconnect(serv_dbus_name);
 }
 
-static const struct {
+static struct {
 	const char *cmd;
 	int (*func)(struct json_object *jobj);
 	bool trusted_is_json_string;
+	/*
+	 * We can't only use regex as strings because they are transformed in
+	 * json_object and [] {} don't have the same signification in json and
+	 * regex. So we use json_object generated in json_regex.{c,h} to
+	 * overcome this. See init_cmd_table().
+	 */
 	union {
 		const char *trusted_str;
 		struct json_object *trusted_jobj;
 	} trusted;
 } cmd_table[] = {
-	{ "get_state", get_state, true, { "" } },
-	{ "get_services", get_services, true, { "" } },
-	{ "get_technologies", get_technologies, true, { "" } },
-	{ "get_home_page", get_home_page, true, { "" } },
-	{ "get_services_from_tech", get_services_from_tech, true, {
-	"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
-	{ "connect", connect_to_service, true, {
-	"{ \"service\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
-	{ "disconnect", disconnect_technology, true, {
-	"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+	{ key_engine_get_state, get_state, true, { "" } },
+	{ key_engine_get_services, get_services, true, { "" } },
+	{ key_engine_get_technologies, get_technologies, true, { "" } },
+	{ key_engine_get_home_page, get_home_page, true, { "" } },
+	{ key_engine_get_services_from_tech, get_services_from_tech, true, {
+		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+	{ key_engine_connect, connect_to_service, true, {
+		"{ \"service\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+	{ key_engine_disconnect, disconnect_technology, true, {
+		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+	{ key_engine_agent_response, agent_response, false, { "" } },
+	{ key_engine_agent_cancel, agent_cancel, true, { "" } },
 	{ NULL, }, // this is a sentinel
 };
+
+/*
+ * We can't set json_objects in the above declaration, so let's cheat:
+ * we fill the gaps with json objects (generated in json_regex.{c,h})
+ */
+static void init_cmd_table(void)
+{
+	int i;
+
+	for (i = 0; cmd_table[i].cmd; i++) {
+		if (!cmd_table[i].trusted_is_json_string) {
+			if (strncmp(key_engine_agent_response, cmd_table[i].cmd, 50) == 0)
+				cmd_table[i].trusted.trusted_jobj = jregex_agent_response;
+			/*
+			else if ()
+			*/
+		}
+	}
+}
 
 static int command_exist(const char *cmd)
 {
@@ -374,7 +436,7 @@ static bool command_data_is_clean(struct json_object *jobj, int cmd_pos)
 
 	if (cmd_table[cmd_pos].trusted_is_json_string)
 		jcmd_data = json_tokener_parse(cmd_table[cmd_pos].trusted.trusted_str);
-	else 
+	else
 		jcmd_data = cmd_table[cmd_pos].trusted.trusted_jobj;
 
 	assert(jcmd_data);
@@ -388,7 +450,7 @@ static bool command_data_is_clean(struct json_object *jobj, int cmd_pos)
 /*
   expected json:
   {
-  	"interface": STRING
+	"interface": STRING
 	"path": STRING (dbus short name)
 	"SIGNAL": STRING
 	"cmd_data": OBJECT
@@ -479,7 +541,7 @@ static void replace_service_in_services(const char *serv_name,
 	struct json_object *sub_array, *tmp;
 	int i, len;
 	bool found = false;
-	
+
 	len = json_object_array_length(services);
 
 	for (i = 0; i < len && !found; i++) {
@@ -590,12 +652,12 @@ int engine_query(struct json_object *jobj)
 
 	if (!command_str || (cmd_pos = command_exist(command_str)) < 0)
 		return -EINVAL;
-	
+
 	json_object_object_get_ex(jobj, key_command_data, &jcmd_data);
 
 	if (jcmd_data != NULL && !command_data_is_clean(jcmd_data, cmd_pos))
 		return -EINVAL;
-	
+
 	res = cmd_table[cmd_pos].func(jcmd_data);
 	json_object_put(jobj);
 
@@ -618,6 +680,15 @@ int engine_init(void)
 		return -1;
 	}
 
+	dbus_error_init(&dbus_err);
+	agent_dbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &dbus_err);
+
+	if (dbus_error_is_set(&dbus_err)) {
+		printf("\n[-] Error getting agent_dbus_conn: %s\n", dbus_err.message);
+		dbus_error_free(&dbus_err);
+		return -1;
+	}
+
 	commands_callback = engine_commands_cb;
 	commands_signal = engine_commands_sig;
 	agent_callback = engine_agent_cb;
@@ -635,7 +706,7 @@ int engine_init(void)
 
 	if (res != -EINPROGRESS)
 		return res;
-	
+
 	// We need the loop to get callbacks to init our things
 	loop_init();
 	init_status = INIT_STATE;
@@ -643,13 +714,13 @@ int engine_init(void)
 
 	if (res != -EINPROGRESS)
 		return res;
-	
+
 	loop_run(false);
 	init_status = INIT_TECHNOLOGIES;
 
 	if ((res = get_technologies(NULL)) != -EINPROGRESS)
 		return res;
-	
+
 	loop_run(false);
 	init_status = INIT_SERVICES;
 
@@ -659,6 +730,11 @@ int engine_init(void)
 	loop_run(false);
 	init_status = INIT_OVER;
 
+	__connman_agent_register(agent_dbus_conn);
+	agent_data_cache = NULL;
+	generate_trusted_json();
+	init_cmd_table();
+
 	return 0;
 }
 
@@ -666,5 +742,7 @@ void engine_terminate(void)
 {
 	json_object_put(technologies);
 	json_object_put(services);
+	__connman_agent_unregister(agent_dbus_conn, NULL);
+	free_trusted_json();
 }
 

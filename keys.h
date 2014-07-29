@@ -29,6 +29,16 @@ extern const char key_command_data[];
 extern const char key_command_path[];
 extern const char key_command_interface[];
 
+extern const char key_engine_get_state[];
+extern const char key_engine_get_services[];
+extern const char key_engine_get_technologies[];
+extern const char key_engine_get_home_page[];
+extern const char key_engine_get_services_from_tech[];
+extern const char key_engine_connect[];
+extern const char key_engine_disconnect[];
+extern const char key_engine_agent_response[];
+extern const char key_engine_agent_cancel[];
+
 extern const char key_dbus_json_success_key[];
 extern const char key_dbus_json_error_key[];
 extern const char key_dbus_json_agent_error_key[];

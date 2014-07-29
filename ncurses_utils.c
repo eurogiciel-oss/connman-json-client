@@ -25,6 +25,7 @@
 #endif
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <ncurses/form.h>
 #include <ncurses/menu.h>
 
@@ -32,19 +33,29 @@
 
 extern WINDOW *win_footer;
 
-static void print_in_footer(bool is_error, const char *msg, int line)
+static void print_in_footer(bool is_error, int line, const char *msg,
+		va_list args)
 {
-	mvwprintw(win_footer, line, 1, "[%s] %s\n",
-			(is_error ? "ERROR" : "INFO"), msg);
+	mvwprintw(win_footer, line, 1, (is_error ? "[ERROR] " : "[INFO] "));
+	vwprintw(win_footer, msg, args);
+	wprintw(win_footer, "\n");
 	wrefresh(win_footer);
 }
 
-void __ncurses_print_info_in_footer(bool is_error, const char* msg)
+void __ncurses_print_info_in_footer(bool is_error, const char* msg, ...)
 {
-	print_in_footer(is_error, msg, 0);
+	va_list args;
+
+	va_start(args, msg);
+	print_in_footer(is_error, 0, msg, args);
+	va_end(args);
 }
 
-void __ncurses_print_info_in_footer2(bool is_error, const char* msg)
+void __ncurses_print_info_in_footer2(bool is_error, const char* msg, ...)
 {
-	print_in_footer(is_error, msg, 1);
+	va_list args;
+
+	va_start(args, msg);
+	print_in_footer(is_error, 1, msg, args);
+	va_end(args);
 }

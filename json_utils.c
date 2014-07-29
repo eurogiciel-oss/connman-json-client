@@ -57,11 +57,11 @@ static bool json_match_object(struct json_object *jobj,
 	bool res = true;
 	struct json_object *tmp_trusted;
 	json_bool key_is_trusted;
-	
+
 	json_object_object_foreach(jobj, key, val) {
 		key_is_trusted = json_object_object_get_ex(jtrusted, key,
 				&tmp_trusted);
-		
+
 		if (key_is_trusted == FALSE)
 			return false;
 
@@ -85,7 +85,7 @@ static bool json_match_array(struct json_object *jobj,
 
 	if (array_len <= 0)
 		return false;
-	
+
 	elem_trusted = json_object_array_get_idx(jtrusted, 0);
 	assert(elem_trusted);
 	assert(json_object_get_type(elem_trusted) != json_type_null);
@@ -137,7 +137,7 @@ static const char* get_string_from_jobj(struct json_object *jobj)
 {
 	if (json_object_get_type(jobj) == json_type_string)
 		return json_object_get_string(jobj);
-	
+
 	return NULL;
 }
 
@@ -149,7 +149,7 @@ static struct json_object* get_jobj_from_key(struct json_object *jobj,
 
 	if (!data)
 		return NULL;
-	
+
 	return data;
 }
 

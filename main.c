@@ -37,6 +37,7 @@
 #include "ncurses_utils.h"
 #include "renderers.h"
 #include "keys.h"
+#include "popup.h"
 
 /*
 
@@ -59,11 +60,17 @@ extern int nb_items;
 extern int nb_fields;
 extern struct context_info context;
 
+extern FORM *popup_form;
+extern FIELD **popup_fields;
+extern struct popup_actions **button_actions;
+
 void print_services_for_tech();
 void connect_to_service();
 
 void print_home_page(void);
 void exec_refresh(void);
+
+static char **agent_request_input_fields;
 
 static struct {
 	void (*func)(); // What to do on action
@@ -87,6 +94,8 @@ void __connman_callback_ended(void)
 
 void stop_loop(int signum)
 {
+	//int i;
+
 	loop_quit();
 
 	if (context_actions[context.current_context].func_free)
@@ -95,6 +104,13 @@ void stop_loop(int signum)
 	engine_terminate();
 	free(context.serv);
 	free(context.tech);
+
+	/*
+	for (i = 0; button_actions[i] != NULL; i++)
+		free(button_actions[i]);
+
+	free(button_actions);
+	*/
 }
 
 void exec_refresh()
@@ -118,6 +134,9 @@ void exec_refresh()
 
 	context_actions[context.current_context].func_free();
 	context_actions[context.current_context].func_refresh();
+
+	if (popup_exists())
+		popup_refresh();
 }
 
 /*
@@ -205,6 +224,26 @@ void exec_back(void)
 	context_actions[context.current_context].func_back();
 }
 
+static void action_on_cmd_callback(struct json_object *jobj)
+{
+	struct json_object *data, *cmd_name_tmp;
+	const char *cmd_name;
+
+	json_object_object_get_ex(jobj, key_command, &cmd_name_tmp);
+	json_object_object_get_ex(jobj, key_command_data, &data);
+	cmd_name = json_object_get_string(cmd_name_tmp);
+
+	/* dispatch according to the command name */
+	if (strcmp(key_engine_get_home_page, cmd_name) == 0)
+		__renderers_home_page(data);
+
+	else if (strcmp(key_engine_get_services_from_tech, cmd_name) == 0)
+		__renderers_services(data);
+
+	else
+		__ncurses_print_info_in_footer(true, "Unknown command called");
+}
+
 void action_on_signal(struct json_object *jobj)
 {
 	struct json_object *sig_path, *sig_data;
@@ -222,47 +261,209 @@ void action_on_signal(struct json_object *jobj)
 
 	if (is_tech_removed && is_current_tech)
 		exec_back();
-	else
-		exec_refresh();
+	else {
+		// This is to prevent always changing wifi services in areas
+		// with a load of networks
+		if (context.current_context != CONTEXT_SERVICES)
+			exec_refresh();
+	}
+}
+
+static void popup_free(void)
+{
+	int i = 0;
+
+	free(agent_request_input_fields);
+
+	while (button_actions[i]) {
+		free(button_actions[i]->key);
+		free(button_actions[i]);
+		i++;
+	}
+
+	popup_delete();
+	exec_refresh();
+}
+
+static void popup_btn_action_ok(void)
+{
+	struct json_object *cmd, *cmd_data;
+	int i;
+	char *label_str, *field_str;
+	char *label_str_clean, *field_str_clean;
+
+	__ncurses_print_info_in_footer(false, "Popup action ok");
+	cmd = json_object_new_object();
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_agent_response));
+	cmd_data = json_object_new_object();
+
+	for (i = 0; i < popup_form->maxfield; i++) {
+		label_str = field_buffer(popup_fields[i], 0);
+		label_str_clean = strtok(label_str, " ");
+
+		if (!label_str_clean)
+			label_str_clean = NULL;
+
+		i++;
+		field_str = field_buffer(popup_fields[i], 0);
+		field_str_clean = strtok(field_str, " ");
+
+		if (!field_str_clean)
+			field_str_clean = "";
+
+		json_object_object_add(cmd_data, label_str_clean,
+				json_object_new_string(field_str_clean));
+	}
+
+	json_object_object_add(cmd, key_command_data, cmd_data);
+	engine_query(cmd);
+	popup_free();
+}
+
+static void popup_btn_action_quit(void)
+{
+	struct json_object *cmd;
+
+	__ncurses_print_info_in_footer(false, "Popup action quit");
+	cmd = json_object_new_object();
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_agent_cancel));
+	engine_query(cmd);
+	popup_free();
+}
+
+static void agent_input_popup(const char *serv_name, struct json_object *data)
+{
+	int i, len = 0;
+	char req_char;
+	char buf[60];
+	// Nom du champ, type, alternates, requirement
+	char *fmt = "%s (%s, %s): %c";
+	const char *value_str;
+	// Arguments as in connman/doc/agent-api.txt
+	struct json_object *type, *req, *alt, *value;
+	struct popup_actions *popup_btn_ok, *popup_btn_quit;
+
+	json_object_object_foreach(data, _key, _val) {
+		assert(_key && _val);
+		len++;
+	}
+
+	agent_request_input_fields = malloc(sizeof(char *) * len * 2 + 1);
+	popup_btn_ok = malloc(sizeof(struct popup_actions));
+	popup_btn_quit = malloc(sizeof(struct popup_actions));
+	popup_btn_ok->key = strdup("OK");
+	popup_btn_ok->func = popup_btn_action_ok;
+	popup_btn_quit->key = strdup("QUIT");
+	popup_btn_quit->func = popup_btn_action_quit;
+	button_actions = malloc(sizeof(struct popup_actions *) * 3);
+	button_actions[0] = popup_btn_ok;
+	button_actions[1] = popup_btn_quit;
+	button_actions[2] = NULL;
+	i = 0;
+
+	json_object_object_foreach(data, key, val) {
+		json_object_object_get_ex(val, "Type", &type);
+		json_object_object_get_ex(val, "Requirement", &req);
+		json_object_object_get_ex(val, "Alternates", &alt);
+		json_object_object_get_ex(val, "Value", &value);
+
+		if (strncmp(json_object_get_string(req), "mandatory", 10) == 0)
+			req_char = '*';
+		else if (strncmp(json_object_get_string(req), "alternate", 10) == 0)
+			req_char = '~';
+		else
+			req_char = ' ';
+
+		snprintf(buf, 60, fmt, key, json_object_get_string(type),
+				alt == NULL ? "no alt" : json_object_get_string(alt),
+				req_char);
+		buf[59] = '\0';
+		agent_request_input_fields[i] = strndup(buf, 60);
+		i++;
+		value_str = " ";
+
+		if (value)
+			value_str = json_object_get_string(value);
+
+		agent_request_input_fields[i] = strndup(value_str, 60);
+		i++;
+	}
+
+	agent_request_input_fields[len*2] = NULL;
+}
+
+static void action_on_agent_msg(struct json_object *jobj)
+{
+	struct json_object *request, *service, *data;
+	const char *request_str, *service_str, *fmt = "The network %s request"
+		" credentials";
+	char buf[150];
+
+	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &request);
+	json_object_object_get_ex(jobj, "data", &data);
+	json_object_object_get_ex(jobj, key_service, &service);
+	request_str = json_object_get_string(request);
+	service_str = json_object_get_string(service);
+
+	if (strncmp("Input Requested", request_str, 15) == 0)
+		agent_input_popup(service_str, data);
+	else {
+		__ncurses_print_info_in_footer(true,
+				"Not yet handled agent request:");
+		__ncurses_print_info_in_footer2(true,
+				json_object_get_string(jobj));
+	}
+
+	snprintf(buf, 150, fmt, context.serv->dbus_name);
+	buf[149] = '\0';
+	popup_new(LINES-8, COLS-4, (LINES-(LINES-7))/2, (COLS-(COLS-5))/2,
+			agent_request_input_fields, buf);
+	assert(popup_exists());
+	__ncurses_print_info_in_footer(false, "%s\n", json_object_get_string(jobj));
+	popup_refresh();
+}
+
+static void action_on_agent_error(struct json_object *jobj)
+{
+	__ncurses_print_info_in_footer(true, "%s\n", json_object_get_string(jobj));
 }
 
 void main_callback(int status, struct json_object *jobj)
 {
-	struct json_object *data, *cmd_tmp, *error;
-	const char *cmd_name;
+	struct json_object *cmd_tmp, *signal, *agent_msg, *agent_error;
 
-	json_object_object_get_ex(jobj, "ERROR", &error);
-	if (error) {
-		__ncurses_print_info_in_footer(true, json_object_get_string(
-					json_object_array_get_idx(error, 0)));
-		json_object_put(jobj);
-		return;
+	if (status < 0) {
+		__ncurses_print_info_in_footer2(true, "Error (code %d : %s)",
+				-status, strerror(-status));
 	}
 
 	/* get the main object items */
 	json_object_object_get_ex(jobj, key_command, &cmd_tmp);
-	json_object_object_get_ex(jobj, key_command_data, &data);
-	cmd_name = json_object_get_string(cmd_tmp);
+	json_object_object_get_ex(jobj, key_dbus_json_signal_key, &signal);
+	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &agent_msg);
+	json_object_object_get_ex(jobj, key_dbus_json_agent_error_key, &agent_error);
 
 	werase(win_body);
 	box(win_body, 0, 0);
 
-	if (!cmd_name) {
-		action_on_signal(jobj);
-	} else {
+	if (cmd_tmp)
+		action_on_cmd_callback(jobj);
 
-		/* dispatch according to the command name */
-		if (strcmp("get_home_page", cmd_name) == 0)
-			__renderers_home_page(data);
-		else if (strcmp("get_services_from_tech", cmd_name) == 0)
-			__renderers_services(data);
-		else {
-			mvwprintw(win_footer, 0, 1, "[INFO]: unknown command called"
-					" back: status %d\tjobj %s\n",
-					json_object_get_string(jobj));
-			wrefresh(win_footer);
-		}
-	}
+	else if (signal)
+		action_on_signal(jobj);
+
+	else if (agent_msg)
+		action_on_agent_msg(jobj);
+
+	else if (agent_error)
+		action_on_agent_error(jobj);
+
+	else
+		__ncurses_print_info_in_footer(true, "Unidentified call back: "
+				"status: %d, jobj: %s\n", status,
+				json_object_get_string(jobj));
 
 	/* release the memory of the json object now */
 	json_object_put(jobj);
@@ -277,7 +478,8 @@ void print_home_page(void)
 			" details, 'F5' to force refresh");
 	__ncurses_print_info_in_footer2(false, "^C to quit");
 	cmd = json_object_new_object();
-	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_get_home_page));
 	engine_query(cmd);
 }
 
@@ -289,11 +491,11 @@ void print_services_for_tech()
 	tmp = json_object_new_object();
 
 	json_object_object_add(cmd, key_command,
-			json_object_new_string("get_services_from_tech"));
+			json_object_new_string(key_engine_get_services_from_tech));
 	json_object_object_add(tmp, "technology",
 			json_object_new_string(context.tech->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
-	__ncurses_print_info_in_footer(false, "");
+	__ncurses_print_info_in_footer(false, "'F5' to refresh network list");
 	__ncurses_print_info_in_footer2(false, "'Esc' to get back");
 
 	if (engine_query(cmd) == -EINVAL)
@@ -309,7 +511,7 @@ void connect_to_service()
 	tmp = json_object_new_object();
 
 	json_object_object_add(cmd, key_command,
-			json_object_new_string("connect"));
+			json_object_new_string(key_engine_connect));
 	json_object_object_add(tmp, key_service,
 			json_object_new_string(context.serv->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
@@ -318,7 +520,10 @@ void connect_to_service()
 		__ncurses_print_info_in_footer(true, "@connect_to_service:"
 				" invalid argument/value");
 
-	__ncurses_print_info_in_footer(false, "Connecting...");
+	werase(win_body);
+	mvwprintw(win_body, 1, 2, "Connecting...");
+	box(win_body, 0, 0);
+	wrefresh(win_body);
 }
 
 void disconnect_of_service(struct userptr_data *data)
@@ -329,7 +534,7 @@ void disconnect_of_service(struct userptr_data *data)
 	tmp = json_object_new_object();
 
 	json_object_object_add(cmd, key_command,
-			json_object_new_string("disconnect"));
+			json_object_new_string(key_engine_disconnect));
 	json_object_object_add(tmp, "technology",
 			json_object_new_string(data->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
@@ -462,6 +667,12 @@ void ncurses_action(void)
 		return;
 	}
 
+	if (popup_exists()) {
+		popup_driver(ch);
+		popup_refresh();
+		return;
+	}
+
 	switch (context.current_context) {
 		case CONTEXT_HOME:
 			exec_action_context_home(ch);
@@ -503,7 +714,7 @@ int main(void)
 		win_body_lines--;
 
 	win_body = newwin(win_body_lines + 2, COLS, 1, 0);
-	box(win_body, 0 , 0);
+	box(win_body, 0 ,0);
 	keypad(win_body, TRUE);
 
 	win_header = newwin(2, COLS, 0, 0);
@@ -524,7 +735,8 @@ int main(void)
 
 	// get_home_page (and render it)
 	cmd = json_object_new_object();
-	json_object_object_add(cmd, key_command, json_object_new_string("get_home_page"));
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_get_home_page));
 	engine_query(cmd);
 	__ncurses_print_info_in_footer(false, "'d' to disconnect, 'Return' for"
 			" details, 'F5' to force refresh");

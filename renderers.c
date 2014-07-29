@@ -61,7 +61,7 @@ char* get_str_key() {
 		cur_ch = 'a';
 	else
 		cur_ch++;
-	
+
 	str_field[0] = cur_ch;
 	str_field[1] = '\0';
 
@@ -108,7 +108,7 @@ static void renderers_technologies(struct json_object *jobj)
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
-		
+
 		if (!sub_array)
 			continue;
 
@@ -382,7 +382,7 @@ static void renderers_service_config(struct json_object *tech_array,
 	my_form = new_form(field);
 	assert(my_form);
 	set_form_win(my_form, win_body);
-	inner = derwin(win_body, win_body_lines-1, COLS-2, 2, 1); 
+	inner = derwin(win_body, win_body_lines-1, COLS-2, 2, 1);
 	box(inner, 0, 0);
 	assert(inner);
 	set_form_sub(my_form, inner);
@@ -490,7 +490,7 @@ static void renderers_services(struct json_object *jobj)
 {
 	char *dbus_short_name;
 	struct json_object *array, *dbus_long_name;
-	
+
 	nb_items = json_object_array_length(jobj);
 
 	if (nb_items == 0) {
@@ -506,14 +506,14 @@ static void renderers_services(struct json_object *jobj)
 	dbus_short_name = __extract_dbus_short_name(json_object_get_string(dbus_long_name));
 	my_items = calloc(nb_items+1, sizeof(ITEM *));
 	assert(my_items != NULL);
-	
+
 	if (strncmp(dbus_short_name, "ethernet_", 9) == 0)
 		renderers_services_ethernet(jobj);
 	else if (strncmp(dbus_short_name, "wifi_", 5) == 0)
 		renderers_services_wifi(jobj);
 	else
 		assert(true);
-	
+
 	free(dbus_short_name);
 
 	mvwprintw(win_body, 1, 2, "Choose a network to connect to:");

@@ -114,7 +114,7 @@ static void call_return_list_free(DBusMessageIter *iter,
 }
 
 /*
- 	"valid_technology" | offline
+	"valid_technology" | offline
  */
 static int cmd_enable(struct json_object *jobj)
 {
@@ -143,7 +143,7 @@ static int cmd_enable(struct json_object *jobj)
 }
 
 /*
- 	"valid_technology" | offline
+	"valid_technology" | offline
  */
 static int cmd_disable(struct json_object *jobj)
 {
@@ -207,7 +207,7 @@ int __cmd_disconnect(const char *serv_dbus_name)
 }
 
 /*
- 	"valid_technology"
+	"valid_technology"
  */
 static int cmd_scan(struct json_object *jobj)
 {
@@ -225,7 +225,7 @@ static int cmd_scan(struct json_object *jobj)
 }
 
 /*
- 	"valid_service"
+	"valid_service"
  */
 static int cmd_connect(struct json_object *jobj)
 {
@@ -246,7 +246,7 @@ static int cmd_connect(struct json_object *jobj)
 }
 
 /*
- 	"valid_service"
+	"valid_service"
  */
 static int cmd_disconnect(struct json_object *jobj)
 {
@@ -267,7 +267,7 @@ static int cmd_disconnect(struct json_object *jobj)
 }
 
 /*
- 	"valid_service"
+	"valid_service"
  */
 static int cmd_remove(struct json_object *jobj)
 {

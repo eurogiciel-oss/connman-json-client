@@ -17,38 +17,31 @@
  *
  */
 
-#ifndef __CONNMAN_AGENT_H
-#define __CONNMAN_AGENT_H
+#ifndef __CONNMAN_POPUP_H
+#define __CONNMAN_POPUP_H
 
-#include <stdbool.h>
-
-#include "dbus_helpers.h"
+#include <ncurses/form.h>
+#include <ncurses/menu.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct agent_data {
-	char *interface;
-	bool registered;
-	DBusMessage *message;
-	DBusMessage *reply;
-	DBusMethodFunction pending_function;
+struct popup_actions {
+	char *key; // Button name
+	void (*func)(); // Execute on 'return'
 };
 
-struct agent_data;
+void popup_new(int rows, int cols, int posy, int posx, char **requests,
+		char *title);
 
-extern void (*agent_callback)(struct json_object *data, struct agent_data *request);
-extern void (*agent_error_callback)(struct json_object *data);
+void popup_delete(void);
 
-int __connman_agent_register(DBusConnection *connection);
+void popup_refresh(void);
 
-void __connman_agent_unregister(DBusConnection *connection, void *user_data);
+bool popup_exists(void);
 
-int __connman_json_to_agent_response(struct json_object *jobj,
-		struct agent_data *request);
-
-void agent_cancel_request(void);
+void popup_driver(int ch);
 
 #ifdef __cplusplus
 }

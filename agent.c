@@ -320,7 +320,8 @@ static void agent_unregister_return(DBusMessageIter *iter,
 		void *user_data)
 {
 	if (error)
-		agent_error_callback(format_agent_error(error, "0xdeadbeef"));
+		agent_error_callback(format_agent_error(error, "Got error while"
+					" uneregistering agent."));
 	else
 		agent_request.registered = false;
 }
@@ -362,7 +363,6 @@ static DBusHandlerResult message_handler(DBusConnection *conn, DBusMessage *msg,
 {
 	const char *method = dbus_message_get_member(msg);
 	msg = dbus_message_ref(msg);
-	printf("\n[~] @message_handler, method = %s\n", method);
 
 	if (strcmp("Release", method) == 0)
 		agent_release(conn, msg, user_data);
@@ -441,7 +441,7 @@ int __connman_agent_register(DBusConnection *connection)
 /*
  * Called with the result of the input
  */
-void __connman_json_to_agent_response(struct json_object *jobj,
+int __connman_json_to_agent_response(struct json_object *jobj,
 				struct agent_data *request)
 {
 	DBusMessageIter iter;
@@ -463,10 +463,18 @@ void __connman_json_to_agent_response(struct json_object *jobj,
 	dbus_message_iter_close_container(&iter, &dict);
 
 	if (res == 0) {
-		__connman_dbus_send_message(agent_connection, request->reply);
+		res = __connman_dbus_send_message(agent_connection, request->reply);
 		request->reply = NULL;
 	}
 
 	pending_message_remove(request);
+	pending_command_complete();
+
+	return res;
+}
+
+void agent_cancel_request(void)
+{
+	pending_message_remove(&agent_request);
 	pending_command_complete();
 }
