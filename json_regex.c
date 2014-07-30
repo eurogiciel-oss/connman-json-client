@@ -24,8 +24,10 @@
 #include <json/json.h>
 
 #include "json_regex.h"
+#include "keys.h"
 
 extern struct json_object *jregex_agent_response;
+extern struct json_object *jregex_agent_retry_response;
 
 void generate_trusted_json(void)
 {
@@ -38,9 +40,12 @@ void generate_trusted_json(void)
 	json_object_object_add(jregex_agent_response, "WPS", json_object_new_string("^([[:digit:]]*)$"));
 	json_object_object_add(jregex_agent_response, "Username", json_object_new_string("^([[:print:]]*)$"));
 	json_object_object_add(jregex_agent_response, "Password", json_object_new_string("^([[:print:]]*)$"));
+
+	jregex_agent_retry_response = json_object_new_boolean(TRUE);
 }
 
 void free_trusted_json(void)
 {
 	json_object_put(jregex_agent_response);
+	json_object_put(jregex_agent_retry_response);
 }

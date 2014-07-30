@@ -22,7 +22,9 @@
 
 extern const char key_state[];
 extern const char key_technologies[];
+extern const char key_technology[];
 extern const char key_service[];
+extern const char key_services[];
 
 extern const char key_command[];
 extern const char key_command_data[];
@@ -38,6 +40,9 @@ extern const char key_engine_connect[];
 extern const char key_engine_disconnect[];
 extern const char key_engine_agent_response[];
 extern const char key_engine_agent_cancel[];
+extern const char key_engine_agent_error_response[];
+extern const char key_engine_agent_retry[];
+extern const char key_engine_scan_tech[];
 
 extern const char key_dbus_json_success_key[];
 extern const char key_dbus_json_error_key[];

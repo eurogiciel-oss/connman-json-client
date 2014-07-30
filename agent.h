@@ -41,14 +41,16 @@ struct agent_data;
 extern void (*agent_callback)(struct json_object *data, struct agent_data *request);
 extern void (*agent_error_callback)(struct json_object *data);
 
-int __connman_agent_register(DBusConnection *connection);
+int agent_register(DBusConnection *connection);
 
-void __connman_agent_unregister(DBusConnection *connection, void *user_data);
+void agent_unregister(DBusConnection *connection, void *user_data);
 
-int __connman_json_to_agent_response(struct json_object *jobj,
+int json_to_agent_response(struct json_object *jobj,
 		struct agent_data *request);
 
 void agent_cancel_request(void);
+
+void report_error_return(struct json_object *retry, struct agent_data *request);
 
 #ifdef __cplusplus
 }

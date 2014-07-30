@@ -36,13 +36,13 @@ extern WINDOW *win_footer;
 static void print_in_footer(bool is_error, int line, const char *msg,
 		va_list args)
 {
-	mvwprintw(win_footer, line, 1, (is_error ? "[ERROR] " : "[INFO] "));
+	mvwprintw(win_footer, line, 0, (is_error ? " [ERROR] " : " [INFO] "));
 	vwprintw(win_footer, msg, args);
 	wprintw(win_footer, "\n");
 	wrefresh(win_footer);
 }
 
-void __ncurses_print_info_in_footer(bool is_error, const char* msg, ...)
+void print_info_in_footer(bool is_error, const char* msg, ...)
 {
 	va_list args;
 
@@ -51,7 +51,7 @@ void __ncurses_print_info_in_footer(bool is_error, const char* msg, ...)
 	va_end(args);
 }
 
-void __ncurses_print_info_in_footer2(bool is_error, const char* msg, ...)
+void print_info_in_footer2(bool is_error, const char* msg, ...)
 {
 	va_list args;
 

@@ -31,7 +31,12 @@
 
 #include "dbus_json.h"
 
-struct json_object* dbus_basic_json(DBusMessageIter *iter)
+static struct json_object* dbus_basic_json(DBusMessageIter *iter);
+static struct json_object* dbus_dict_json(DBusMessageIter *iter);
+static struct json_object* dbus_array_json(DBusMessageIter *iter);
+static struct json_object* _dbus_to_json(DBusMessageIter *iter);
+
+static struct json_object* dbus_basic_json(DBusMessageIter *iter)
 {
 	int arg_type, i;
 	dbus_bool_t b;
@@ -51,7 +56,7 @@ struct json_object* dbus_basic_json(DBusMessageIter *iter)
 
 	case DBUS_TYPE_VARIANT:
 		dbus_message_iter_recurse(iter, &entry);
-		res = dbus_to_json(&entry);
+		res = _dbus_to_json(&entry);
 		break;
 
 	case DBUS_TYPE_BOOLEAN:
@@ -77,7 +82,7 @@ struct json_object* dbus_basic_json(DBusMessageIter *iter)
 
 	default:
                 fprintf(stderr, "Error on type %d(%c) in"
-                "__connman_dbus_basic_json\n", arg_type, (char)arg_type);
+                "dbus_basic_json\n", arg_type, (char)arg_type);
                 res = NULL;
 		break;
 	}
@@ -85,7 +90,7 @@ struct json_object* dbus_basic_json(DBusMessageIter *iter)
         return res;
 }
 
-struct json_object* dbus_dict_json(DBusMessageIter *iter)
+static struct json_object* dbus_dict_json(DBusMessageIter *iter)
 {
         int arg_type;
         char * str;
@@ -103,13 +108,13 @@ struct json_object* dbus_dict_json(DBusMessageIter *iter)
                         dbus_message_iter_get_basic(&entry, &str);
                         dbus_message_iter_next(&entry);
                         dbus_message_iter_recurse(&entry, &subentry);
-                        tmp = dbus_to_json(&subentry);
+                        tmp = _dbus_to_json(&subentry);
                         json_object_object_add(dict, str, tmp);
                         break;
 
                 default:
                         fprintf(stderr, "Error on type %d(%c) in "
-                        "__connman_dbus_dict_json\n", arg_type, (char)arg_type);
+                        "dbus_dict_json\n", arg_type, (char)arg_type);
                         break;
 		}
 
@@ -119,7 +124,7 @@ struct json_object* dbus_dict_json(DBusMessageIter *iter)
         return dict;
 }
 
-struct json_object* dbus_array_json(DBusMessageIter *iter)
+static struct json_object* dbus_array_json(DBusMessageIter *iter)
 {
         struct json_object *jarray, *tmp;
         DBusMessageIter array;
@@ -128,7 +133,7 @@ struct json_object* dbus_array_json(DBusMessageIter *iter)
         array = *iter;
 
         while (dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_INVALID ) {
-                tmp = dbus_to_json(&array);
+                tmp = _dbus_to_json(&array);
                 json_object_array_add(jarray, tmp);
                 dbus_message_iter_next(&array);
         }
@@ -136,7 +141,7 @@ struct json_object* dbus_array_json(DBusMessageIter *iter)
         return jarray;
 }
 
-struct json_object* dbus_to_json(DBusMessageIter *iter)
+static struct json_object* _dbus_to_json(DBusMessageIter *iter)
 {
         struct json_object *res;
         int arg_type;
@@ -173,7 +178,7 @@ struct json_object* dbus_to_json(DBusMessageIter *iter)
 		res = NULL;
 		break;
         default:
-                fprintf(stderr, "Type not supported in dbus_to_json %d(%c)\n",
+                fprintf(stderr, "Type not supported in _dbus_to_json %d(%c)\n",
                         arg_type, (char)arg_type);
                 res = NULL;
         }
@@ -181,32 +186,21 @@ struct json_object* dbus_to_json(DBusMessageIter *iter)
         return res;
 }
 
-struct json_object* __connman_dbus_to_json(DBusMessageIter *iter)
+struct json_object* dbus_to_json(DBusMessageIter *iter)
 {
-        struct json_object *res = NULL, *tmp = dbus_to_json(iter);
+        struct json_object *res = NULL, *tmp = _dbus_to_json(iter);
 
 	// This is useful for the TechnologyAdded signal for example
 	if (dbus_message_iter_next(iter) == TRUE) {
 		res = json_object_new_array();
 		json_object_array_add(res, tmp);
-		json_object_array_add(res, dbus_to_json(iter));
+		json_object_array_add(res, _dbus_to_json(iter));
 	}
 
         return (res == NULL ? tmp : res);
 }
 
-void __connman_dbus_json_print(struct json_object *jobj)
-{
-        fprintf(stdout, "\n%s\n", json_object_to_json_string(jobj));
-}
-
-void __connman_dbus_json_print_pretty(struct json_object *jobj)
-{
-        fprintf(stdout, "\n%s\n", json_object_to_json_string_ext(jobj,
-	JSON_C_TO_STRING_PRETTY));
-}
-
-int __connman_json_to_dbus_dict(struct json_object *jobj,
+int json_to_dbus_dict(struct json_object *jobj,
 			DBusMessageIter *dict)
 {
 	int res = 0;
@@ -220,7 +214,7 @@ int __connman_json_to_dbus_dict(struct json_object *jobj,
 			break;
 		}
 
-		__connman_dbus_append_dict_entry(dict, key, DBUS_TYPE_STRING,
+		dbus_append_dict_entry(dict, key, DBUS_TYPE_STRING,
 				str);
 	}
 

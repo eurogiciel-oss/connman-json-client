@@ -28,6 +28,7 @@
 
 #include "ncurses_utils.h"
 #include "json_utils.h"
+#include "keys.h"
 
 #include "renderers.h"
 
@@ -99,12 +100,12 @@ static void renderers_technologies(struct json_object *jobj)
 	char desc_base_sub[30];
 	const char *k_name, *k_type, *k_powered, *k_connected;
 	char *desc, *tech_short_name;
-	struct json_object *sub_array, *tech_name, *tech_dict;
+	struct json_object *sub_array, *dbus_tech_name, *tech_dict;
 	struct userptr_data *data;
 
 	nb_items = json_object_array_length(jobj);
 	my_items = calloc(nb_items+1, sizeof(ITEM*));
-	assert(my_items != NULL);
+	assert(my_items != NULL && nb_items > 0);
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
@@ -112,7 +113,7 @@ static void renderers_technologies(struct json_object *jobj)
 		if (!sub_array)
 			continue;
 
-		tech_name = json_object_array_get_idx(sub_array, 0);
+		dbus_tech_name = json_object_array_get_idx(sub_array, 0);
 		tech_dict = json_object_array_get_idx(sub_array, 1);
 
 		json_object_object_foreach(tech_dict, key, val) {
@@ -139,12 +140,13 @@ static void renderers_technologies(struct json_object *jobj)
 				desc_base_sub, k_powered, k_connected);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 		tech_short_name =
-			__extract_dbus_short_name(json_object_get_string(tech_name));
+			__extract_dbus_short_name(json_object_get_string(dbus_tech_name));
 		my_items[i] = new_item(tech_short_name, desc);
 
 		data = malloc(sizeof(struct userptr_data *));
 		assert(data != NULL);
-		data->dbus_name = strdup(json_object_get_string(tech_name));
+		data->dbus_name = strdup(json_object_get_string(dbus_tech_name));
+		data->pretty_name = strdup(k_name);
 		set_item_userptr(my_items[i], data);
 	}
 
@@ -213,6 +215,7 @@ void __renderers_free_home_page(void)
 
 		data = item_userptr(my_items[i]);
 		free((void *) data->dbus_name);
+		free((void *) data->pretty_name);
 		free(data);
 
 		free_item(my_items[i]);
@@ -435,6 +438,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 		data = malloc(sizeof(struct userptr_data *));
 		assert(data != NULL);
 		data->dbus_name = strdup(dbus_name_str);
+		data->pretty_name = strdup(name_str);
 		set_item_userptr(my_items[i], data);
 	}
 }
@@ -458,8 +462,12 @@ static void renderers_services_wifi(struct json_object *jobj)
 		serv_dict = json_object_array_get_idx(sub_array, 1);
 
 		json_object_object_get_ex(serv_dict, "Name", &tmp);
-		assert(tmp != NULL);
-		essid_str = json_object_get_string(tmp);
+
+		// hidden wifi
+		if (tmp)
+			essid_str = json_object_get_string(tmp);
+		else
+			essid_str = "[hidden]";
 
 		json_object_object_get_ex(serv_dict, "Security", &tmp);
 		assert(tmp != NULL);
@@ -482,6 +490,7 @@ static void renderers_services_wifi(struct json_object *jobj)
 		data = malloc(sizeof(struct userptr_data *));
 		assert(data != NULL);
 		data->dbus_name = strdup(serv_name_str);
+		data->pretty_name = strdup(essid_str);
 		set_item_userptr(my_items[i], data);
 	}
 }
@@ -545,6 +554,7 @@ void __renderers_free_services(void)
 		//free((void *) item->name.str);
 		data = item_userptr(my_items[i]);
 		free((void *) data->dbus_name);
+		free((void *) data->pretty_name);
 		free(data);
 		free_item(my_items[i]);
 	}
@@ -558,8 +568,8 @@ void __renderers_services(struct json_object *jobj)
 {
 	struct json_object *tech_array, *tech_dict, *serv_array;
 
-	json_object_object_get_ex(jobj, "technology", &tech_array);
-	json_object_object_get_ex(jobj, "services", &serv_array);
+	json_object_object_get_ex(jobj, key_technology, &tech_array);
+	json_object_object_get_ex(jobj, key_services, &serv_array);
 
 	tech_dict = json_object_array_get_idx(tech_array, 1);
 	nb_pages = 0;

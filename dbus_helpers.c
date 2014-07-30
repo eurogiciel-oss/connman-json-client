@@ -58,7 +58,7 @@ static void dbus_method_reply(DBusPendingCall *call, void *user_data)
 	callback->cb(&iter, NULL, callback->user_data);
 
 end:
-	__connman_callback_ended();
+	callback_ended();
 
 	free(callback);
 	dbus_message_unref(reply);
@@ -122,7 +122,7 @@ static int append_variant(DBusMessageIter *iter, const char *property,
 	return 0;
 }
 
-int __connman_dbus_method_call(DBusConnection *connection,
+int dbus_method_call(DBusConnection *connection,
 		const char *service, const char *path, const char *interface,
 		const char *method, connman_dbus_method_return_func_t cb,
 		void *user_data, connman_dbus_append_func_t append_func,
@@ -145,7 +145,7 @@ int __connman_dbus_method_call(DBusConnection *connection,
 	return send_method_call(connection, message, cb, user_data);
 }
 
-int __connman_dbus_set_property(DBusConnection *connection,
+int dbus_set_property(DBusConnection *connection,
 		const char *path, const char *interface,
 		connman_dbus_method_return_func_t cb, void * user_data,
 		const char *property, int type, const void *value)
@@ -169,7 +169,7 @@ int __connman_dbus_set_property(DBusConnection *connection,
 	return send_method_call(connection, message, cb, user_data);
 }
 
-void __connman_dbus_append_dict(DBusMessageIter *iter,
+void dbus_append_dict(DBusMessageIter *iter,
 		connman_dbus_append_func_t append_fn,
 		struct json_object *append_json_object)
 {
@@ -186,7 +186,7 @@ void __connman_dbus_append_dict(DBusMessageIter *iter,
 	dbus_message_iter_close_container(iter, &dict);
 }
 
-void __connman_dbus_append_dict_entry(DBusMessageIter *iter,
+void dbus_append_dict_entry(DBusMessageIter *iter,
 		const char *property, int type, const void *value)
 {
 	DBusMessageIter dict_entry;
@@ -199,7 +199,7 @@ void __connman_dbus_append_dict_entry(DBusMessageIter *iter,
 	dbus_message_iter_close_container(iter, &dict_entry);
 }
 
-int __connman_dbus_set_property_dict(DBusConnection *connection,
+int dbus_set_property_dict(DBusConnection *connection,
 		const char *path, const char *interface,
 		connman_dbus_method_return_func_t cb, void *user_data,
 		const char *property, int type,
@@ -261,7 +261,7 @@ static void append_variant_array(DBusMessageIter *iter, const char *property,
 	dbus_message_iter_close_container(iter, &variant);
 }
 
-void __connman_dbus_append_dict_string_array(DBusMessageIter *iter,
+void dbus_append_dict_string_array(DBusMessageIter *iter,
 		const char *property, connman_dbus_append_func_t append_fn,
 		struct json_object *append_json_object)
 {
@@ -276,7 +276,7 @@ void __connman_dbus_append_dict_string_array(DBusMessageIter *iter,
 	dbus_message_iter_close_container(iter, &dict_entry);
 }
 
-int __connman_dbus_set_property_array(DBusConnection *connection,
+int dbus_set_property_array(DBusConnection *connection,
 		const char *path, const char *interface,
 		connman_dbus_method_return_func_t cb, void *user_data,
 		const char *property, int type,
@@ -302,7 +302,7 @@ int __connman_dbus_set_property_array(DBusConnection *connection,
 	return send_method_call(connection, message, cb, user_data);
 }
 
-dbus_bool_t __connman_dbus_send_message(DBusConnection *connection, DBusMessage *message)
+dbus_bool_t dbus_send_message(DBusConnection *connection, DBusMessage *message)
 {
 	dbus_bool_t result = FALSE;
 
@@ -332,7 +332,7 @@ dbus_bool_t __connman_dbus_send_message(DBusConnection *connection, DBusMessage 
 	return result;
 }
 
-dbus_bool_t __connman_dbus_send_reply_valist(DBusConnection *connection,
+dbus_bool_t dbus_send_reply_valist(DBusConnection *connection,
 				DBusMessage *message, int type, va_list args)
 {
 	DBusMessage *reply;
@@ -346,10 +346,10 @@ dbus_bool_t __connman_dbus_send_reply_valist(DBusConnection *connection,
 		return TRUE;
 	}
 
-	return __connman_dbus_send_message(connection, reply);
+	return dbus_send_message(connection, reply);
 }
 
-dbus_bool_t __connman_dbus_send_reply(DBusConnection *connection,
+dbus_bool_t dbus_send_reply(DBusConnection *connection,
 				DBusMessage *message, int type, ...)
 {
 	va_list args;
@@ -357,14 +357,14 @@ dbus_bool_t __connman_dbus_send_reply(DBusConnection *connection,
 
 	va_start(args, type);
 
-	result = __connman_dbus_send_reply_valist(connection, message, type, args);
+	result = dbus_send_reply_valist(connection, message, type, args);
 
 	va_end(args);
 
 	return result;
 }
 
-dbus_bool_t __connman_dbus_send_error_valist(DBusConnection *connection,
+dbus_bool_t dbus_send_error_valist(DBusConnection *connection,
 					DBusMessage *message, const char *name,
 					const char *format, va_list args)
 {
@@ -377,10 +377,10 @@ dbus_bool_t __connman_dbus_send_error_valist(DBusConnection *connection,
 	if (error == NULL)
 		return FALSE;
 
-	return __connman_dbus_send_message(connection, error);
+	return dbus_send_message(connection, error);
 }
 
-dbus_bool_t __connman_dbus_send_error(DBusConnection *connection, DBusMessage *message,
+dbus_bool_t dbus_send_error(DBusConnection *connection, DBusMessage *message,
 				const char *name, const char *format, ...)
 {
 	va_list args;
@@ -388,7 +388,7 @@ dbus_bool_t __connman_dbus_send_error(DBusConnection *connection, DBusMessage *m
 
 	va_start(args, format);
 
-	result = __connman_dbus_send_error_valist(connection, message, name,
+	result = dbus_send_error_valist(connection, message, name,
 							format, args);
 
 	va_end(args);

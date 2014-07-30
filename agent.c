@@ -64,7 +64,7 @@ static struct json_object* format_agent_error(const char *error,
 
 	json_object_object_add(res, key_dbus_json_agent_error_key,
 			json_object_new_string(error));
-	json_object_object_add(res, "service", json_object_new_string(service));
+	json_object_object_add(res, key_service, json_object_new_string(service));
 
 	return res;
 }
@@ -99,7 +99,7 @@ static struct json_object* format_agent_msg(const char *msg,
 
 	json_object_object_add(res, key_dbus_json_agent_msg_key,
 		json_object_new_string(msg));
-	json_object_object_add(res, "service", json_object_new_string(service));
+	json_object_object_add(res, key_service, json_object_new_string(service));
 	json_object_object_add(res, "data", data);
 
 	return res;
@@ -186,7 +186,7 @@ static DBusMessage *agent_release(DBusConnection *connection,
 	if (handle_message(message, &agent_request, agent_release) == false)
 		return NULL;
 
-	__connman_agent_unregister(connection, NULL);
+	agent_unregister(connection, NULL);
 
 	pending_message_remove(&agent_request);
 
@@ -212,10 +212,10 @@ void request_browser_return(struct json_object *connected,
 		struct agent_data *request)
 {
 	if (json_object_get_boolean(connected) == TRUE)
-		__connman_dbus_send_reply(agent_connection, request->message,
+		dbus_send_reply(agent_connection, request->message,
 				DBUS_TYPE_INVALID);
 	else
-		__connman_dbus_send_error(agent_connection, request->message,
+		dbus_send_error(agent_connection, request->message,
 				"net.connman.Agent.Error.Canceled", NULL);
 
 	pending_message_remove(request);
@@ -252,10 +252,10 @@ static DBusMessage *agent_request_browser(DBusConnection *connection,
 void report_error_return(struct json_object *retry, struct agent_data *request)
 {
 	if (json_object_get_boolean(retry) == TRUE)
-		__connman_dbus_send_error(agent_connection, request->message,
+		dbus_send_error(agent_connection, request->message,
 				"net.connman.Agent.Error.Retry", NULL);
 	else
-		__connman_dbus_send_reply(agent_connection, request->message,
+		dbus_send_reply(agent_connection, request->message,
 				DBUS_TYPE_INVALID);
 
 	pending_message_remove(request);
@@ -307,7 +307,7 @@ static DBusMessage *agent_request_input(DBusConnection *connection,
 	dbus_message_iter_next(&iter);
 
 	res = format_agent_msg("Input Requested", service,
-			__connman_dbus_to_json(&iter));
+			dbus_to_json(&iter));
 
 	agent_request.message = message;
         agent_callback(res, &agent_request);
@@ -326,7 +326,7 @@ static void agent_unregister_return(DBusMessageIter *iter,
 		agent_request.registered = false;
 }
 
-void __connman_agent_unregister(DBusConnection *connection, void *user_data)
+void agent_unregister(DBusConnection *connection, void *user_data)
 {
 	int res;
 	DBusMessage *msg;
@@ -381,7 +381,7 @@ static DBusHandlerResult message_handler(DBusConnection *conn, DBusMessage *msg,
 }
 
 static DBusObjectPathVTable agent_table = {
-	.unregister_function = __connman_agent_unregister,
+	.unregister_function = agent_unregister,
 	.message_function = message_handler,
 };
 
@@ -391,14 +391,14 @@ static void agent_register_return(DBusMessageIter *iter,
 	DBusConnection *connection = user_data;
 
 	if (error) {
-		__connman_agent_unregister(connection, NULL);
+		agent_unregister(connection, NULL);
 		agent_error_callback(format_agent_error(error, ""));
 
 	} else
 		agent_request.registered = true;
 }
 
-int __connman_agent_register(DBusConnection *connection)
+int agent_register(DBusConnection *connection)
 {
 	DBusMessage *msg;
 	DBusMessageIter iter;
@@ -427,7 +427,7 @@ int __connman_agent_register(DBusConnection *connection)
 			NULL);
 
 	if (res != -EINPROGRESS) {
-		__connman_agent_unregister(connection, NULL);
+		agent_unregister(connection, NULL);
 		agent_error_callback(format_agent_error("Failed to register"
 			" Agent", ""));
 	} else
@@ -441,7 +441,7 @@ int __connman_agent_register(DBusConnection *connection)
 /*
  * Called with the result of the input
  */
-int __connman_json_to_agent_response(struct json_object *jobj,
+int json_to_agent_response(struct json_object *jobj,
 				struct agent_data *request)
 {
 	DBusMessageIter iter;
@@ -457,13 +457,13 @@ int __connman_json_to_agent_response(struct json_object *jobj,
                         DBUS_DICT_ENTRY_END_CHAR_AS_STRING,
 			&dict);
 
-	res = __connman_json_to_dbus_dict(jobj, &dict);
+	res = json_to_dbus_dict(jobj, &dict);
 	json_object_put(jobj);
 
 	dbus_message_iter_close_container(&iter, &dict);
 
 	if (res == 0) {
-		res = __connman_dbus_send_message(agent_connection, request->reply);
+		res = dbus_send_message(agent_connection, request->reply);
 		request->reply = NULL;
 	}
 

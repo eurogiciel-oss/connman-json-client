@@ -42,7 +42,7 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 	WINDOW *inner;
 
 	win_body = newwin(rows, cols, posy, posx);
-	assert(win_body != NULL);
+	assert(win_body != NULL && button_actions != NULL);
 	box(win_body, 0, 0);
 
 	for (nb_buttons = 0; button_actions[nb_buttons]; nb_buttons++);
@@ -69,11 +69,21 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 	assert(inner != NULL);
 	set_menu_sub(popup_menu, inner);
 	set_menu_mark(popup_menu, "");
+	assert(post_menu(popup_menu) == E_OK);
 
-	for (nb_fields = 0; requests[nb_fields]; nb_fields++);
-		
+	mvwprintw(win_body, 1, 2, "%s", title);
+
+	for (nb_fields = 0; requests && requests[nb_fields]; nb_fields++);
+
+	if (nb_fields == 0) {
+		popup_fields = NULL;
+		popup_form = NULL;
+		is_on_button = true;
+		return;
+	}
+
 	popup_fields = malloc(sizeof(FIELD *) * (nb_fields+1));
-	assert(popup_fields);
+	assert(popup_fields != NULL);
 
 	for (i = 0; i < nb_fields && requests[i]; i++) {
 
@@ -100,38 +110,40 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 	popup_fields[i] = NULL;
 	popup_form = new_form(popup_fields);
 	assert(popup_form != NULL);
-	win_form = derwin(win_body, rows-8, cols-2, 4, 1);
+	win_form = derwin(win_body, rows-6, cols-2, 2, 1);
 	box(win_form, 0, 0);
 	assert(popup_form != NULL && win_form != NULL);
 	set_form_win(popup_form, win_form);
 	inner = derwin(win_form, popup_form->rows+1, popup_form->cols+1, 1, 1);
 	assert(inner != NULL);
 	set_form_sub(popup_form, inner);
-	mvwprintw(win_body, 1, 2, "%s", title);
 
 	assert(post_form(popup_form) == E_OK);
-	assert(post_menu(popup_menu) == E_OK);
-	is_on_button = true;
-	pos_menu_cursor(popup_menu);
+	is_on_button = false;
+	set_menu_fore(popup_menu, A_NORMAL); // "hide" the button
+	pos_form_cursor(popup_form);
 }
 
 void popup_delete(void)
 {
 	int i;
 
-	unpost_form(popup_form);
+	if (popup_form)
+		unpost_form(popup_form);
+
 	unpost_menu(popup_menu);
 
-	for (i = 0; popup_fields[i] != NULL; i++) {
-		free_field(popup_fields[i]);
+	if (popup_form) {
+		for (i = 0; popup_fields[i] != NULL; i++)
+			free_field(popup_fields[i]);
+
+		free_form(popup_form);
 	}
 
-	for (i = 0; popup_items[i] != NULL; i++) {
+	for (i = 0; popup_items[i] != NULL; i++)
 		free_item(popup_items[i]);
-	}
 
 	free_menu(popup_menu);
-	free_form(popup_form);
 	delwin(win_form);
 	delwin(win_menu);
 	delwin(win_body);
@@ -166,7 +178,7 @@ void popup_driver(int ch)
 {
 	switch (ch) {
 		case KEY_DOWN:
-			if (is_on_button)
+			if (is_on_button || !popup_form)
 				break;
 
 			if (popup_form->current == popup_fields[popup_form->maxfield-1])
@@ -177,6 +189,9 @@ void popup_driver(int ch)
 
 		case KEY_UP:
 			if (is_on_button) {
+				if (!popup_form)
+					break;
+
 				is_on_button = false;
 				set_menu_fore(popup_menu, A_NORMAL); // "hide" the button
 			} else
@@ -198,10 +213,10 @@ void popup_driver(int ch)
 			break;
 
 		case 10:
-			if (!is_on_button)
-				switch_to_buttons();
-			else
+			if (is_on_button)
 				driver_buttons(current_item(popup_menu));
+			else
+				switch_to_buttons();
 
 			break;
 

@@ -39,6 +39,7 @@
 
 DBusConnection *connection;
 struct json_object *jregex_agent_response;
+struct json_object *jregex_agent_retry_response;
 
 static DBusConnection *agent_dbus_conn;
 
@@ -129,7 +130,7 @@ static int agent_response(struct json_object *data)
 {
 	int res;
 
-	res = __connman_json_to_agent_response(data, agent_data_cache);
+	res = json_to_agent_response(data, agent_data_cache);
 	agent_data_cache = NULL;
 
 	return res;
@@ -138,6 +139,17 @@ static int agent_response(struct json_object *data)
 static int agent_cancel(struct json_object *data)
 {
 	agent_cancel_request();
+	agent_data_cache = NULL;
+
+	return -EINPROGRESS;
+}
+
+/*
+ * data: bool
+ */
+static int agent_error_response(struct json_object *data)
+{
+	report_error_return(data, agent_data_cache);
 	agent_data_cache = NULL;
 
 	return -EINPROGRESS;
@@ -292,7 +304,7 @@ static int get_services_from_tech(struct json_object *jobj)
 			   *jtech_type, *tech_co;
 	const char *tech_dbus_name, *tech_type;
 
-	json_object_object_get_ex(jobj, "technology", &tmp);
+	json_object_object_get_ex(jobj, key_technology, &tmp);
 	tech_dbus_name = json_object_get_string(tmp);
 	res_tech = get_technology(tech_dbus_name);
 
@@ -309,8 +321,8 @@ static int get_services_from_tech(struct json_object *jobj)
 			(json_object_get_boolean(tech_co) ? true : false));
 
 	res = json_object_new_object();
-	json_object_object_add(res, "services", res_serv);
-	json_object_object_add(res, "technology", res_tech);
+	json_object_object_add(res, key_services, res_serv);
+	json_object_object_add(res, key_technology, res_tech);
 	engine_callback(0, coating("get_services_from_tech", res));
 	json_object_put(res);
 
@@ -333,24 +345,23 @@ static int connect_to_service(struct json_object *jobj)
 
 static int disconnect_technology(struct json_object *jobj)
 {
-	struct json_object *tmp, *serv, *tech, *tech_dict,
-			   *tech_type, *tech_co;
+	struct json_object *tmp, *serv, *tech_dict, *tech_type;
 	const char *tech_dbus_name, *tech_type_str, *serv_dbus_name;
 
-	json_object_object_get_ex(jobj, "technology", &tmp);
+	json_object_object_get_ex(jobj, key_technology, &tmp);
 	tech_dbus_name = json_object_get_string(tmp);
-	tech = get_technology(tech_dbus_name);
+	tmp = get_technology(tech_dbus_name);
 
-	if (tech == NULL)
+	if (tmp == NULL)
 		return -EINVAL;
 
-	tech_dict = json_object_array_get_idx(tech, 1);
+	tech_dict = json_object_array_get_idx(tmp, 1);
 	json_object_object_get_ex(tech_dict, "Type", &tech_type);
 	tech_type_str = json_object_get_string(tech_type);
-	json_object_object_get_ex(tech_dict, "Connected", &tech_co);
+	json_object_object_get_ex(tech_dict, "Connected", &tmp);
 
 	serv = get_services_matching_tech_type(tech_type_str,
-			(json_object_get_boolean(tech_co) ? true : false));
+			(json_object_get_boolean(tmp) ? true : false));
 
 	if (serv == NULL || json_object_array_length(serv) != 1)
 		return -EINVAL;
@@ -362,6 +373,21 @@ static int disconnect_technology(struct json_object *jobj)
 	json_object_put(serv);
 
 	return __cmd_disconnect(serv_dbus_name);
+}
+
+static int scan_technology(struct json_object *jobj)
+{
+	struct json_object *tmp;
+	const char *tech_dbus_name;
+
+	json_object_object_get_ex(jobj, key_technology, &tmp);
+	tech_dbus_name = json_object_get_string(tmp);
+	tmp = get_technology(tech_dbus_name);
+
+	if (tmp == NULL)
+		return -EINVAL;
+
+	return __cmd_scan(tech_dbus_name);
 }
 
 static struct {
@@ -391,6 +417,9 @@ static struct {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ key_engine_agent_response, agent_response, false, { "" } },
 	{ key_engine_agent_cancel, agent_cancel, true, { "" } },
+	{ key_engine_agent_retry, agent_error_response, false, { "" } },
+	{ key_engine_scan_tech, scan_technology, true, {
+		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ NULL, }, // this is a sentinel
 };
 
@@ -406,9 +435,9 @@ static void init_cmd_table(void)
 		if (!cmd_table[i].trusted_is_json_string) {
 			if (strncmp(key_engine_agent_response, cmd_table[i].cmd, 50) == 0)
 				cmd_table[i].trusted.trusted_jobj = jregex_agent_response;
-			/*
-			else if ()
-			*/
+
+			else if (strncmp(key_engine_agent_retry, cmd_table[i].cmd, 50) == 0)
+				cmd_table[i].trusted.trusted_jobj = jregex_agent_retry_response;
 		}
 	}
 }
@@ -730,7 +759,7 @@ int engine_init(void)
 	loop_run(false);
 	init_status = INIT_OVER;
 
-	__connman_agent_register(agent_dbus_conn);
+	agent_register(agent_dbus_conn);
 	agent_data_cache = NULL;
 	generate_trusted_json();
 	init_cmd_table();
@@ -742,7 +771,7 @@ void engine_terminate(void)
 {
 	json_object_put(technologies);
 	json_object_put(services);
-	__connman_agent_unregister(agent_dbus_conn, NULL);
+	agent_unregister(agent_dbus_conn, NULL);
 	free_trusted_json();
 }
 

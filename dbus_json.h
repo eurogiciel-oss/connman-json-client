@@ -24,21 +24,9 @@
 extern "C" {
 #endif
 
-struct json_object* dbus_basic_json(DBusMessageIter *iter);
-
-struct json_object* dbus_dict_json(DBusMessageIter *iter);
-
-struct json_object* dbus_array_json(DBusMessageIter *iter);
-
 struct json_object* dbus_to_json(DBusMessageIter *iter);
 
-struct json_object* __connman_dbus_to_json(DBusMessageIter *iter);
-
-void __connman_dbus_json_print(struct json_object *jobj);
-
-void __connman_dbus_json_print_pretty(struct json_object *jobj);
-
-int __connman_json_to_dbus_dict(struct json_object *jobj,
+int json_to_dbus_dict(struct json_object *jobj,
 		DBusMessageIter *dict);
 
 #ifdef __cplusplus

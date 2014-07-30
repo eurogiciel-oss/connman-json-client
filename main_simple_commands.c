@@ -41,9 +41,9 @@ void stop_loop(int signum);
 void (*engine_callback)(int status, struct json_object *jobj) = NULL;
 void main_callback(int status, struct json_object *jobj);
 
-void __connman_callback_ended(void)
+void callback_ended(void)
 {
-	printf("\n[-] __connman_callback_ended\n");
+	printf("\n[-] callback_ended\n");
 }
 
 void stop_loop(int signum)
@@ -55,7 +55,7 @@ void stop_loop(int signum)
 void main_callback(int status, struct json_object *jobj)
 {
 	printf("[*] cb: status %s (%d)\n", strerror(status), status);
-	__connman_dbus_json_print_pretty(jobj);
+	dbus_json_print_pretty(jobj);
 }
 
 void __ncurses_action(int ch) {

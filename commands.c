@@ -99,7 +99,7 @@ static void call_return_list(DBusMessageIter *iter, const char *error,
 		jerror = TRUE;
 
 	} else {
-		res = __connman_dbus_to_json(iter);
+		res = dbus_to_json(iter);
 		jerror = FALSE;
 	}
 
@@ -127,7 +127,7 @@ static int cmd_enable(struct json_object *jobj)
 
 	if (strcmp(arg, "offline") == 0) {
 		tech = strndup(arg, JSON_COMMANDS_STRING_SIZE_SMALL);
-		return __connman_dbus_set_property(connection, "/",
+		return dbus_set_property(connection, "/",
 				"net.connman.Manager", call_return_list_free,
 				tech, "OfflineMode", DBUS_TYPE_BOOLEAN, &b);
 	}
@@ -137,7 +137,7 @@ static int cmd_enable(struct json_object *jobj)
 			"/net/connman/technology/%s", arg);
 	tech[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_set_property(connection, tech,
+	return dbus_set_property(connection, tech,
 			"net.connman.Technology", call_return_list_free, tech,
 			"Powered", DBUS_TYPE_BOOLEAN, &b);
 }
@@ -156,7 +156,7 @@ static int cmd_disable(struct json_object *jobj)
 
 	if (strcmp(arg, "offline") == 0) {
 		tech = strndup(arg, JSON_COMMANDS_STRING_SIZE_SMALL);
-		return __connman_dbus_set_property(connection, "/",
+		return dbus_set_property(connection, "/",
 				"net.connman.Manager", call_return_list_free,
 				tech, "OfflineMode", DBUS_TYPE_BOOLEAN, &b);
 	}
@@ -166,43 +166,50 @@ static int cmd_disable(struct json_object *jobj)
 			"/net/connman/technology/%s", arg);
 	tech[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_set_property(connection, tech,
+	return dbus_set_property(connection, tech,
 			"net.connman.Technology", call_return_list_free, tech,
 			"Powered", DBUS_TYPE_BOOLEAN, &b);
 }
 
 int __cmd_state(void)
 {
-	return __connman_dbus_method_call(connection, key_connman_service,
+	return dbus_method_call(connection, key_connman_service,
 			key_connman_path, "net.connman.Manager", "GetProperties",
 			call_return_list, NULL, NULL, NULL);
 }
 
 int __cmd_services(void)
 {
-	return __connman_dbus_method_call(connection, key_connman_service,
+	return dbus_method_call(connection, key_connman_service,
 			key_connman_path, "net.connman.Manager", "GetServices",
 			call_return_list, NULL, NULL, NULL);
 }
 
 int __cmd_technologies(void)
 {
-	return __connman_dbus_method_call(connection, key_connman_service,
+	return dbus_method_call(connection, key_connman_service,
 			key_connman_path, "net.connman.Manager", "GetTechnologies",
 			call_return_list, NULL,	NULL, NULL);
 }
 
 int __cmd_connect(const char *serv_dbus_name)
 {
-	return __connman_dbus_method_call(connection, key_connman_service,
+	return dbus_method_call(connection, key_connman_service,
 			serv_dbus_name, "net.connman.Service", "Connect",
 			call_return_list, NULL, NULL, NULL);
 }
 
 int __cmd_disconnect(const char *serv_dbus_name)
 {
-	return __connman_dbus_method_call(connection, key_connman_service,
+	return dbus_method_call(connection, key_connman_service,
 			serv_dbus_name, "net.connman.Service", "Disconnect",
+			call_return_list, NULL, NULL, NULL);
+}
+
+int __cmd_scan(const char *tech_dbus_name)
+{
+	return dbus_method_call(connection, key_connman_service,
+			tech_dbus_name, "net.connman.Technology", "Scan",
 			call_return_list, NULL, NULL, NULL);
 }
 
@@ -219,7 +226,7 @@ static int cmd_scan(struct json_object *jobj)
 			"/net/connman/technology/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, key_connman_service,
+	return dbus_method_call(connection, key_connman_service,
 			path, "net.connman.Technology", "Scan",
 			call_return_list_free, path, NULL, NULL);
 }
@@ -240,7 +247,7 @@ static int cmd_connect(struct json_object *jobj)
 			"/net/connman/service/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, key_connman_service, path,
+	return dbus_method_call(connection, key_connman_service, path,
 			"net.connman.Service", "Connect", call_return_list_free,
 			path, NULL, NULL);
 }
@@ -261,7 +268,7 @@ static int cmd_disconnect(struct json_object *jobj)
 			"/net/connman/service/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, key_connman_service, path,
+	return dbus_method_call(connection, key_connman_service, path,
 			"net.connman.Service", "Disconnect",
 			call_return_list_free, path, NULL, NULL);
 }
@@ -282,7 +289,7 @@ static int cmd_remove(struct json_object *jobj)
 			"/net/connman/service/%s", arg);
 	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
 
-	return __connman_dbus_method_call(connection, key_connman_service, path,
+	return dbus_method_call(connection, key_connman_service, path,
 			"net.connman.Service", "Remove", call_return_list_free,
 			path, NULL, NULL);
 }
@@ -298,7 +305,7 @@ static void config_append_ipv4(DBusMessageIter *iter,
 		buf = malloc(sizeof(char) * JSON_COMMANDS_STRING_SIZE_SMALL);
 		strncpy(buf, str, JSON_COMMANDS_STRING_SIZE_SMALL);
 
-		__connman_dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING,
+		dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING,
 				&buf);
 		free(buf);
 	}
@@ -326,7 +333,7 @@ static void config_append_ipv6(DBusMessageIter *iter,
 	json_object_object_foreach(jobj, key, val) {
 		if (strcmp("PrefixLength", key) == 0) {
 			int tmp = json_object_get_int(val);
-			__connman_dbus_append_dict_entry(iter, key,
+			dbus_append_dict_entry(iter, key,
 					DBUS_TYPE_BYTE, &tmp);
 		} else {
 			str = json_object_get_string(val);
@@ -334,7 +341,7 @@ static void config_append_ipv6(DBusMessageIter *iter,
 					JSON_COMMANDS_STRING_SIZE_SMALL);
 			strncpy(buf, str, JSON_COMMANDS_STRING_SIZE_SMALL);
 
-			__connman_dbus_append_dict_entry(iter, key,
+			dbus_append_dict_entry(iter, key,
 					DBUS_TYPE_STRING, &buf);
 
 			free(buf);
@@ -386,18 +393,18 @@ static void config_append_proxy(DBusMessageIter *iter,
 	if (strcmp(method, "manual") == 0) {
 		if (!json_object_object_get_ex(jobj, "Servers", &tmpobj))
 			tmpobj = 0;
-		__connman_dbus_append_dict_string_array(iter, "Servers",
+		dbus_append_dict_string_array(iter, "Servers",
 				config_append_json_array_of_strings, tmpobj);
 
 		if (!json_object_object_get_ex(jobj, "Excludes", &tmpobj))
 			tmpobj = 0;
-		__connman_dbus_append_dict_string_array(iter, "Excludes",
+		dbus_append_dict_string_array(iter, "Excludes",
 				config_append_json_array_of_strings, tmpobj);
 	} else if (strcmp(method, "auto") == 0) {
 		if (json_object_object_get_ex(jobj, "URL", &urlobj)) {
 			url = json_object_get_string(urlobj);
 			if (url)
-				__connman_dbus_append_dict_entry(iter, "URL",
+				dbus_append_dict_entry(iter, "URL",
 						DBUS_TYPE_STRING, url);
 		}
 	} else if (strcmp(method, "direct") != 0)
@@ -407,7 +414,7 @@ static void config_append_proxy(DBusMessageIter *iter,
 	buf = malloc(sizeof(char) * method_len);
 	strncpy(buf, method, method_len);
 
-	__connman_dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING,
+	dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING,
 			&buf);
 	free(buf);
 }
@@ -481,21 +488,21 @@ static int cmd_config(struct json_object *jobj)
 				JSON_COMMANDS_STRING_SIZE_MEDIUM);
 
 		if (strcmp("IPv4", key) == 0) {
-			res = __connman_dbus_set_property_dict(connection,
+			res = dbus_set_property_dict(connection,
 					path, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"IPv4.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv4, val);
 
 		} else if (strcmp("IPv6", key) == 0) {
-			res = __connman_dbus_set_property_dict(connection,
+			res = dbus_set_property_dict(connection,
 					path, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"IPv6.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv6, val);
 
 		} else if (strcmp("Proxy", key) == 0) {
-			res = __connman_dbus_set_property_dict(connection,
+			res = dbus_set_property_dict(connection,
 					path, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"Proxy.Configuration", DBUS_TYPE_STRING,
@@ -508,7 +515,7 @@ static int cmd_config(struct json_object *jobj)
 			else
 				dbus_bool = FALSE;
 
-			res = __connman_dbus_set_property(connection, path,
+			res = dbus_set_property(connection, path,
 					"net.connman.Service", call_return_list_free,
 					dyn_service_name, "AutoConnect",
 					DBUS_TYPE_BOOLEAN, &dbus_bool);
@@ -528,7 +535,7 @@ static int cmd_config(struct json_object *jobj)
 		}
 
 		if (simple_service_conf != NULL) {
-			res = __connman_dbus_set_property_array(connection,
+			res = dbus_set_property_array(connection,
 					path, "net.connman.Service",
 					call_return_list_free,
 					dyn_service_name,
@@ -610,7 +617,7 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 			json_object_new_string(interface));
 	json_object_object_add(res, key_command_path,
 			json_object_new_string(path));
-	json_object_object_add(res, key_command_data, __connman_dbus_to_json(&iter));
+	json_object_object_add(res, key_command_data, dbus_to_json(&iter));
 
 	json_object_object_add(res, key_dbus_json_signal_key, sig_name);
 	json_object_get(res);
@@ -754,7 +761,7 @@ int __cmd_monitor(struct json_object *jobj)
    "data": {...}
    }
  */
-int __connman_command_dispatcher(DBusConnection *dbus_conn,
+int command_dispatcher(DBusConnection *dbus_conn,
 		struct json_object *jobj)
 {
 
@@ -803,10 +810,10 @@ int __connman_command_dispatcher(DBusConnection *dbus_conn,
 		res = cmd_enable(data);
 
 	else if (strcmp(command, "agent_register") == 0)
-		res = __connman_agent_register(connection);
+		res = agent_register(connection);
 
 	else if (strcmp(command, "agent_unregister") == 0) {
-		__connman_agent_unregister(connection, NULL);
+		agent_unregister(connection, NULL);
 		res = 0;
 	}
 

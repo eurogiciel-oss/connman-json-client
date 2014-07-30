@@ -47,7 +47,9 @@ int __cmd_connect(const char *serv_dbus_name);
 
 int __cmd_disconnect(const char *serv_dbus_name);
 
-int __connman_command_dispatcher(DBusConnection *dbus_conn,
+int __cmd_scan(const char *tech_dbus_name);
+
+int command_dispatcher(DBusConnection *dbus_conn,
 	struct json_object *jobj);
 
 #ifdef __cplusplus

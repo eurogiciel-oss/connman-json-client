@@ -39,7 +39,8 @@ extern int win_body_lines;
 extern int nb_pages;
 
 struct userptr_data {
-	char *dbus_name;
+	char *dbus_name;	// e.g. /net/connman/wifi_XXXXXX_YYYY_none
+	char *pretty_name;	// e.g. MySuperWifiESSID
 };
 
 typedef enum {CONTEXT_HOME, CONTEXT_SERVICE_CONFIG, CONTEXT_SERVICES} context_t;

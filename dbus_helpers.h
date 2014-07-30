@@ -32,7 +32,7 @@ extern "C" {
 typedef DBusMessage * (* DBusMethodFunction) (DBusConnection *connection,
 		DBusMessage *message, void *user_data);
 
-extern void __connman_callback_ended(void);
+extern void callback_ended(void);
 
 typedef void (*connman_dbus_method_return_func_t)(DBusMessageIter *iter,
 		const char *error, void *user_data);
@@ -40,36 +40,36 @@ typedef void (*connman_dbus_method_return_func_t)(DBusMessageIter *iter,
 typedef void (*connman_dbus_append_func_t)(DBusMessageIter *iter,
 		struct json_object *append_json_object);
 
-int __connman_dbus_method_call(DBusConnection *connection,
+int dbus_method_call(DBusConnection *connection,
 		const char *service, const char *path, const char *interface,
 		const char *method, connman_dbus_method_return_func_t cb,
 		void * user_data, connman_dbus_append_func_t append_fn,
 		struct json_object *append_json_object);
 
-int __connman_dbus_set_property(DBusConnection *connection,
+int dbus_set_property(DBusConnection *connection,
 		const char *path, const char *interface,
 		connman_dbus_method_return_func_t cb, void * user_data,
 		const char *property, int type, const void *value);
 
-void __connman_dbus_append_dict(DBusMessageIter *iter,
+void dbus_append_dict(DBusMessageIter *iter,
 		connman_dbus_append_func_t append_fn,
 		struct json_object *append_json_object);
 
-void __connman_dbus_append_dict_entry(DBusMessageIter *iter,
+void dbus_append_dict_entry(DBusMessageIter *iter,
 		const char *property, int type, const void *value);
 
-int __connman_dbus_set_property_dict(DBusConnection *connection,
+int dbus_set_property_dict(DBusConnection *connection,
 		const char *path, const char *interface,
 		connman_dbus_method_return_func_t cb, void * user_data,
 		const char *property, int type,
 		connman_dbus_append_func_t append_fn,
 		struct json_object *append_json_object);
 
-void __connman_dbus_append_dict_string_array(DBusMessageIter *iter,
+void dbus_append_dict_string_array(DBusMessageIter *iter,
 		const char *property, connman_dbus_append_func_t append_fn,
 		struct json_object *append_json_object);
 
-int __connman_dbus_set_property_array(DBusConnection *connection,
+int dbus_set_property_array(DBusConnection *connection,
 		const char *path, const char *interface,
 		connman_dbus_method_return_func_t cb, void *user_data,
 		const char *property, int type,
@@ -80,20 +80,20 @@ int send_method_call(DBusConnection *connection,
 		DBusMessage *message, connman_dbus_method_return_func_t cb,
 		void *user_data);
 
-dbus_bool_t __connman_dbus_send_message(DBusConnection *connection,
+dbus_bool_t dbus_send_message(DBusConnection *connection,
 		DBusMessage *message);
 
-dbus_bool_t __connman_dbus_send_reply_valist(DBusConnection *connection,
+dbus_bool_t dbus_send_reply_valist(DBusConnection *connection,
 		DBusMessage *message, int type, va_list args);
 
-dbus_bool_t __connman_dbus_send_reply(DBusConnection *connection,
+dbus_bool_t dbus_send_reply(DBusConnection *connection,
 		DBusMessage *message, int type, ...);
 
-dbus_bool_t __connman_dbus_send_error_valist(DBusConnection *connection,
+dbus_bool_t dbus_send_error_valist(DBusConnection *connection,
 		DBusMessage *message, const char *name, const char *format,
 		va_list args);
 
-dbus_bool_t __connman_dbus_send_error(DBusConnection *connection, DBusMessage *message,
+dbus_bool_t dbus_send_error(DBusConnection *connection, DBusMessage *message,
 		const char *name, const char *format, ...);
 
 #ifdef __cplusplus

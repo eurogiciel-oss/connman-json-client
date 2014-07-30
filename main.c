@@ -86,7 +86,7 @@ static struct {
 		print_services_for_tech }, // CONTEXT_SERVICES
 };
 
-void __connman_callback_ended(void)
+void callback_ended(void)
 {
 	// This method is mandatory, and might be of use somehow
 	return;
@@ -104,13 +104,6 @@ void stop_loop(int signum)
 	engine_terminate();
 	free(context.serv);
 	free(context.tech);
-
-	/*
-	for (i = 0; button_actions[i] != NULL; i++)
-		free(button_actions[i]);
-
-	free(button_actions);
-	*/
 }
 
 void exec_refresh()
@@ -196,10 +189,12 @@ void exec_action(struct userptr_data *data)
 	switch (context.current_context) {
 		case CONTEXT_SERVICES:
 			context.serv->dbus_name = strdup(data->dbus_name);
+			context.serv->pretty_name = strdup(data->pretty_name);
 			break;
 
 		case CONTEXT_HOME:
 			context.tech->dbus_name = strdup(data->dbus_name);
+			context.tech->pretty_name = strdup(data->pretty_name);
 			break;
 
 		default:
@@ -212,16 +207,25 @@ void exec_action(struct userptr_data *data)
 
 void exec_back(void)
 {
-	if (context.serv && context.serv->dbus_name)
+	if (context.serv && context.serv->dbus_name && context.serv->pretty_name) {
 		free(context.serv->dbus_name);
+		free(context.serv->pretty_name);
+	}
 
-	if (context.tech && context.tech->dbus_name)
+	if (context.tech && context.tech->dbus_name && context.tech->pretty_name) {
 		free(context.tech->dbus_name);
+		free(context.tech->pretty_name);
+	}
 
 	context.serv->dbus_name = NULL;
+	context.serv->pretty_name = NULL;
 	context.tech->dbus_name = NULL;
+	context.tech->pretty_name = NULL;
 	context_actions[context.current_context].func_free();
 	context_actions[context.current_context].func_back();
+
+	if (popup_exists())
+		popup_refresh();
 }
 
 static void action_on_cmd_callback(struct json_object *jobj)
@@ -241,7 +245,7 @@ static void action_on_cmd_callback(struct json_object *jobj)
 		__renderers_services(data);
 
 	else
-		__ncurses_print_info_in_footer(true, "Unknown command called");
+		print_info_in_footer(true, "Unknown command called");
 }
 
 void action_on_signal(struct json_object *jobj)
@@ -274,13 +278,17 @@ static void popup_free(void)
 	int i = 0;
 
 	free(agent_request_input_fields);
+	assert(button_actions != NULL);
 
 	while (button_actions[i]) {
 		free(button_actions[i]->key);
 		free(button_actions[i]);
+		button_actions[i]->key = NULL;
+		button_actions[i] = NULL;
 		i++;
 	}
 
+	agent_request_input_fields = NULL;
 	popup_delete();
 	exec_refresh();
 }
@@ -292,7 +300,7 @@ static void popup_btn_action_ok(void)
 	char *label_str, *field_str;
 	char *label_str_clean, *field_str_clean;
 
-	__ncurses_print_info_in_footer(false, "Popup action ok");
+	print_info_in_footer(false, "Popup action ok");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_agent_response));
@@ -325,12 +333,39 @@ static void popup_btn_action_quit(void)
 {
 	struct json_object *cmd;
 
-	__ncurses_print_info_in_footer(false, "Popup action quit");
+	print_info_in_footer(false, "Popup action quit");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_agent_cancel));
 	engine_query(cmd);
 	popup_free();
+}
+
+/*
+ * json_type_bool -> int
+ */
+static void popup_btn_action_retry(int retry)
+{
+	struct json_object *cmd;
+
+	cmd = json_object_new_object();
+	json_object_object_add(cmd, key_engine_agent_response,
+			json_object_new_boolean(retry));
+
+	engine_query(cmd);
+	popup_free();
+}
+
+/* Retry currently don't behave as expected
+static void popup_btn_action_retry_ok(void)
+{
+	popup_btn_action_retry(TRUE);
+}
+*/
+
+static void popup_btn_action_retry_no(void)
+{
+	popup_btn_action_retry(FALSE);
 }
 
 static void agent_input_popup(const char *serv_name, struct json_object *data)
@@ -401,6 +436,7 @@ static void action_on_agent_msg(struct json_object *jobj)
 		" credentials";
 	char buf[150];
 
+	assert(!popup_exists());
 	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &request);
 	json_object_object_get_ex(jobj, "data", &data);
 	json_object_object_get_ex(jobj, key_service, &service);
@@ -409,25 +445,70 @@ static void action_on_agent_msg(struct json_object *jobj)
 
 	if (strncmp("Input Requested", request_str, 15) == 0)
 		agent_input_popup(service_str, data);
+
+	else if (strncmp("Agent RequestBrowser", request_str, 21) == 0)
+		print_info_in_footer(false, "The agent request you to"
+				" open the web page: %s",
+				json_object_get_string(jobj));
+
 	else {
-		__ncurses_print_info_in_footer(true,
+		print_info_in_footer(true,
 				"Not yet handled agent request:");
-		__ncurses_print_info_in_footer2(true,
+		print_info_in_footer2(true,
 				json_object_get_string(jobj));
 	}
 
-	snprintf(buf, 150, fmt, context.serv->dbus_name);
+	snprintf(buf, 150, fmt, context.serv->pretty_name);
 	buf[149] = '\0';
-	popup_new(LINES-8, COLS-4, (LINES-(LINES-7))/2, (COLS-(COLS-5))/2,
+	popup_new(18, 76, (LINES-17)/2, (COLS-75)/2,
 			agent_request_input_fields, buf);
 	assert(popup_exists());
-	__ncurses_print_info_in_footer(false, "%s\n", json_object_get_string(jobj));
+	print_info_in_footer(false, "%s\n", json_object_get_string(jobj));
 	popup_refresh();
 }
 
+/*
+	{
+		"ERROR Agent": "invalid-key",
+		"service": "wifi_XXXXXXXXXXXX_YYYYYYYYYYYYYY_managed_psk",
+		"msg": "Retry ?",
+		"callback": "report_error_return"
+	}
+ */
 static void action_on_agent_error(struct json_object *jobj)
 {
-	__ncurses_print_info_in_footer(true, "%s\n", json_object_get_string(jobj));
+	char *fmt = "Agent error: %s on \"%s\", %s", buf[150];
+	const char *error_msg_str, *service_str;
+	struct json_object *tmp;
+	struct popup_actions *popup_btn_no;
+
+	assert(!popup_exists());
+	json_object_object_get_ex(jobj, key_dbus_json_agent_error_key, &tmp);
+	error_msg_str = json_object_get_string(tmp);
+	json_object_object_get_ex(jobj, key_service, &tmp);
+	service_str = json_object_get_string(tmp);
+
+	snprintf(buf, 150, fmt, error_msg_str, service_str);
+	buf[149] = '\0';
+
+	/* Retry won't work... thus i only inform the user that it failed
+	button_actions = malloc(sizeof(struct popup_actions *) * 3);
+	popup_btn_yes = malloc(sizeof(struct popup_actions));
+	popup_btn_yes->key = strdup("YES");
+	popup_btn_yes->func = popup_btn_action_retry_ok;
+	button_actions[0] = popup_btn_yes;
+	*/
+	button_actions = malloc(sizeof(struct popup_actions *) * 2);
+	popup_btn_no = malloc(sizeof(struct popup_actions));
+	popup_btn_no->key = strdup("OK");
+	popup_btn_no->func = popup_btn_action_retry_no;
+	button_actions[0] = popup_btn_no;
+	button_actions[1] = NULL;
+
+	popup_new(16, 76, (LINES-15)/2, (COLS-75)/2, NULL, buf);
+	assert(popup_exists());
+	print_info_in_footer(true, "%s\n", json_object_get_string(jobj));
+	popup_refresh();
 }
 
 void main_callback(int status, struct json_object *jobj)
@@ -435,7 +516,7 @@ void main_callback(int status, struct json_object *jobj)
 	struct json_object *cmd_tmp, *signal, *agent_msg, *agent_error;
 
 	if (status < 0) {
-		__ncurses_print_info_in_footer2(true, "Error (code %d : %s)",
+		print_info_in_footer2(true, "Error (code %d : %s)",
 				-status, strerror(-status));
 	}
 
@@ -461,7 +542,7 @@ void main_callback(int status, struct json_object *jobj)
 		action_on_agent_error(jobj);
 
 	else
-		__ncurses_print_info_in_footer(true, "Unidentified call back: "
+		print_info_in_footer(true, "Unidentified call back: "
 				"status: %d, jobj: %s\n", status,
 				json_object_get_string(jobj));
 
@@ -474,9 +555,9 @@ void print_home_page(void)
 	struct json_object *cmd;
 
 	werase(win_footer);
-	__ncurses_print_info_in_footer(false, "'d' to disconnect, 'Return' for"
+	print_info_in_footer(false, "'d' to disconnect, 'Return' for"
 			" details, 'F5' to force refresh");
-	__ncurses_print_info_in_footer2(false, "^C to quit");
+	print_info_in_footer2(false, "^C to quit");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_home_page));
@@ -492,14 +573,15 @@ void print_services_for_tech()
 
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_services_from_tech));
-	json_object_object_add(tmp, "technology",
+	json_object_object_add(tmp, key_technology,
 			json_object_new_string(context.tech->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
-	__ncurses_print_info_in_footer(false, "'F5' to refresh network list");
-	__ncurses_print_info_in_footer2(false, "'Esc' to get back");
+	print_info_in_footer(false, "'F5' to refresh network list, "
+			"'F6' to force a scan");
+	print_info_in_footer2(false, "'Esc' to get back");
 
 	if (engine_query(cmd) == -EINVAL)
-		__ncurses_print_info_in_footer(true, "@print_services_for_tech:"
+		print_info_in_footer(true, "@print_services_for_tech:"
 				"invalid argument/value");
 }
 
@@ -517,7 +599,7 @@ void connect_to_service()
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
-		__ncurses_print_info_in_footer(true, "@connect_to_service:"
+		print_info_in_footer(true, "@connect_to_service:"
 				" invalid argument/value");
 
 	werase(win_body);
@@ -535,13 +617,27 @@ void disconnect_of_service(struct userptr_data *data)
 
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_disconnect));
-	json_object_object_add(tmp, "technology",
+	json_object_object_add(tmp, key_technology,
 			json_object_new_string(data->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
-		__ncurses_print_info_in_footer(true, "@disconnect_of_service:"
+		print_info_in_footer(true, "@disconnect_of_service:"
 				" invalid argument/value");
+}
+
+void scan_tech(const char *tech_dbus_name)
+{
+	struct json_object *cmd, *tmp;
+
+	cmd = json_object_new_object();
+	tmp = json_object_new_object();
+	json_object_object_add(tmp, key_technology,
+			json_object_new_string(tech_dbus_name));
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_scan_tech));
+	json_object_object_add(cmd, key_command_data, tmp);
+	engine_query(cmd);
 }
 
 void exec_action_context_home(int ch)
@@ -560,7 +656,7 @@ void exec_action_context_home(int ch)
 		case 100: // 'd'
 			item = current_item(my_menu);
 			disconnect_of_service(item_userptr(item));
-			__ncurses_print_info_in_footer(false,
+			print_info_in_footer(false,
 					"Disconnecting...");
 			break;
 
@@ -602,14 +698,27 @@ void exec_action_context_service_config(int ch)
 		case KEY_ENTER:
 		case 10:
 			field = current_field(my_form);
-			__ncurses_print_info_in_footer(false,
+			print_info_in_footer(false,
 					field_buffer(field, 0));
 			break;
 
-		case REQ_DEL_PREV:
-		case KEY_DC:
+		// Delete the char before cursor
 		case KEY_BACKSPACE:
+		case 127:
 			form_driver(my_form, REQ_DEL_PREV);
+			break;
+
+		// Delete the char under the cursor
+		case KEY_DC:
+			form_driver(my_form, REQ_DEL_CHAR);
+			break;
+
+		case KEY_LEFT:
+			form_driver(my_form, REQ_PREV_CHAR);
+			break;
+
+		case KEY_RIGHT:
+			form_driver(my_form, REQ_NEXT_CHAR);
 			break;
 
 		default:
@@ -636,7 +745,17 @@ void exec_action_context_services(int ch)
 		case 10:
 			item = current_item(my_menu);
 			exec_action(item_userptr(item));
-			__ncurses_print_info_in_footer(false, "Connecting...");
+			print_info_in_footer(false, "Connecting...");
+			break;
+
+		case KEY_F(6):
+			assert(context.tech != NULL &&
+					context.tech->dbus_name != NULL &&
+					context.tech->pretty_name != NULL);
+			scan_tech(context.tech->dbus_name);
+			print_info_in_footer(false, "Scanning %s, "
+					"press 'F5' to refresh",
+					context.tech->pretty_name);
 			break;
 	}
 }
@@ -645,17 +764,10 @@ void ncurses_action(void)
 {
 	int ch = wgetch(win_body);
 
-	/*
-	if (ch == KEY_F(1)) {
-		stop_loop(0);
-		return;
-	}
-	*/
-
 	if (ch == 27) {
 
 		if (context.current_context == CONTEXT_HOME)
-			__ncurses_print_info_in_footer2(false, "^C to quit");
+			print_info_in_footer2(false, "^C to quit");
 		else
 			exec_back();
 
@@ -684,6 +796,11 @@ void ncurses_action(void)
 
 		case CONTEXT_SERVICES:
 			exec_action_context_services(ch);
+			break;
+
+		default:
+			print_info_in_footer(true, "No actions for"
+					" context %d", context.current_context);
 			break;
 	}
 
@@ -738,9 +855,9 @@ int main(void)
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_home_page));
 	engine_query(cmd);
-	__ncurses_print_info_in_footer(false, "'d' to disconnect, 'Return' for"
+	print_info_in_footer(false, "'d' to disconnect, 'Return' for"
 			" details, 'F5' to force refresh");
-	__ncurses_print_info_in_footer2(false, "^C to quit");
+	print_info_in_footer2(false, "^C to quit");
 
 	loop_run(true);
 	loop_terminate();

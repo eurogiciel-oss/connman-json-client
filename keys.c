@@ -19,7 +19,9 @@
 
 const char key_state[] = "state";
 const char key_technologies[] = "technologies";
+const char key_technology[] = "technology";
 const char key_service[] = "service";
+const char key_services[] = "services";
 
 const char key_command[] = "command";
 const char key_command_data[] = "cmd_data";
@@ -35,6 +37,8 @@ const char key_engine_connect[] = "connect";
 const char key_engine_disconnect[] = "disconnect";
 const char key_engine_agent_response[] = "agent_response";
 const char key_engine_agent_cancel[] = "agent_cancel";
+const char key_engine_agent_retry[] = "agent_retry";
+const char key_engine_scan_tech[] = "scan_tech";
 
 const char key_dbus_json_success_key[] = "OK";
 const char key_dbus_json_error_key[] = "ERROR";
