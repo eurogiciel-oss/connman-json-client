@@ -33,7 +33,7 @@ static ITEM **popup_items;
 
 FORM *popup_form;
 FIELD **popup_fields;
-struct popup_actions **button_actions;
+struct popup_actions **popup_btn_action;
 
 void popup_new(int rows, int cols, int posy, int posx, char **requests,
 		char *title)
@@ -42,17 +42,17 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 	WINDOW *inner;
 
 	win_body = newwin(rows, cols, posy, posx);
-	assert(win_body != NULL && button_actions != NULL);
+	assert(win_body != NULL && popup_btn_action != NULL);
 	box(win_body, 0, 0);
 
-	for (nb_buttons = 0; button_actions[nb_buttons]; nb_buttons++);
+	for (nb_buttons = 0; popup_btn_action[nb_buttons]; nb_buttons++);
 
 	popup_items = malloc(sizeof(ITEM *) * (nb_buttons+1));
 	assert(popup_items != NULL);
-	assert(button_actions != NULL);
+	assert(popup_btn_action != NULL);
 
-	for (i = 0; button_actions[i]; i++) {
-		popup_items[i] = new_item(button_actions[i]->key, "");
+	for (i = 0; popup_btn_action[i]; i++) {
+		popup_items[i] = new_item(popup_btn_action[i]->key, "");
 		assert(popup_items[i] != NULL);
 	}
 
@@ -97,6 +97,15 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 			field_opts_on(popup_fields[i], O_EDIT);
 			field_opts_off(popup_fields[i], O_STATIC);
 			set_field_back(popup_fields[i], A_UNDERLINE); 
+			/*
+			 * Only allow input characters that can be displayed.
+			 * More advanced verification is possible but if the
+			 * user type something wrong, he won't be allowed to
+			 * quit the field until he corrected his mistake. Of
+			 * course no information whatsoever point towards the
+			 * mistake.
+			 */
+			set_field_type(popup_fields[i], TYPE_REGEXP, "^([[:print:]]*)$");
 		} else {
 			popup_fields[i] = new_field(1, 45, cury, curx, 0, 0);
 			assert(popup_fields[i] != NULL);
@@ -148,7 +157,7 @@ void popup_delete(void)
 	delwin(win_menu);
 	delwin(win_body);
 	win_body = NULL;
-	button_actions = NULL;
+	popup_btn_action = NULL;
 }
 
 static void driver_buttons(ITEM *item)
@@ -156,11 +165,11 @@ static void driver_buttons(ITEM *item)
 	const char *name = item_name(item);
 	int i = 0;
 
-	while (button_actions[i] && strcmp(button_actions[i]->key, name) != 0)
+	while (popup_btn_action[i] && strcmp(popup_btn_action[i]->key, name) != 0)
 		i++;
 
-	if (button_actions[i])
-		button_actions[i]->func();
+	if (popup_btn_action[i])
+		popup_btn_action[i]->func();
 }
 
 static void switch_to_buttons(void)

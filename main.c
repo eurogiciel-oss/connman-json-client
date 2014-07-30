@@ -62,7 +62,7 @@ extern struct context_info context;
 
 extern FORM *popup_form;
 extern FIELD **popup_fields;
-extern struct popup_actions **button_actions;
+extern struct popup_actions **popup_btn_action;
 
 void print_services_for_tech();
 void connect_to_service();
@@ -278,13 +278,13 @@ static void popup_free(void)
 	int i = 0;
 
 	free(agent_request_input_fields);
-	assert(button_actions != NULL);
+	assert(popup_btn_action != NULL);
 
-	while (button_actions[i]) {
-		free(button_actions[i]->key);
-		free(button_actions[i]);
-		button_actions[i]->key = NULL;
-		button_actions[i] = NULL;
+	while (popup_btn_action[i]) {
+		free(popup_btn_action[i]->key);
+		free(popup_btn_action[i]);
+		popup_btn_action[i]->key = NULL;
+		popup_btn_action[i] = NULL;
 		i++;
 	}
 
@@ -392,10 +392,10 @@ static void agent_input_popup(const char *serv_name, struct json_object *data)
 	popup_btn_ok->func = popup_btn_action_ok;
 	popup_btn_quit->key = strdup("QUIT");
 	popup_btn_quit->func = popup_btn_action_quit;
-	button_actions = malloc(sizeof(struct popup_actions *) * 3);
-	button_actions[0] = popup_btn_ok;
-	button_actions[1] = popup_btn_quit;
-	button_actions[2] = NULL;
+	popup_btn_action = malloc(sizeof(struct popup_actions *) * 3);
+	popup_btn_action[0] = popup_btn_ok;
+	popup_btn_action[1] = popup_btn_quit;
+	popup_btn_action[2] = NULL;
 	i = 0;
 
 	json_object_object_foreach(data, key, val) {
@@ -492,18 +492,18 @@ static void action_on_agent_error(struct json_object *jobj)
 	buf[149] = '\0';
 
 	/* Retry won't work... thus i only inform the user that it failed
-	button_actions = malloc(sizeof(struct popup_actions *) * 3);
+	popup_btn_action = malloc(sizeof(struct popup_actions *) * 3);
 	popup_btn_yes = malloc(sizeof(struct popup_actions));
 	popup_btn_yes->key = strdup("YES");
 	popup_btn_yes->func = popup_btn_action_retry_ok;
-	button_actions[0] = popup_btn_yes;
+	popup_btn_action[0] = popup_btn_yes;
 	*/
-	button_actions = malloc(sizeof(struct popup_actions *) * 2);
+	popup_btn_action = malloc(sizeof(struct popup_actions *) * 2);
 	popup_btn_no = malloc(sizeof(struct popup_actions));
 	popup_btn_no->key = strdup("OK");
 	popup_btn_no->func = popup_btn_action_retry_no;
-	button_actions[0] = popup_btn_no;
-	button_actions[1] = NULL;
+	popup_btn_action[0] = popup_btn_no;
+	popup_btn_action[1] = NULL;
 
 	popup_new(16, 76, (LINES-15)/2, (COLS-75)/2, NULL, buf);
 	assert(popup_exists());

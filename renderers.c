@@ -340,6 +340,15 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 			if (is_modifiable || is_autoconnect) {
 				field_opts_on(field[*pos], O_EDIT);
 				set_field_back(field[*pos], A_UNDERLINE);
+				/*
+				 * Only allow input characters that can be displayed.
+				 * More advanced verification is possible but if the
+				 * user type something wrong, he won't be allowed to
+				 * quit the field until he corrected his mistake. Of
+				 * course no information whatsoever point towards the
+				 * mistake.
+				 */
+				set_field_type(field[*pos], TYPE_REGEXP, "^([[:print:]]*)$");
 
 				if (is_autoconnect)
 					set_field_type(field[*pos], TYPE_ENUM,
