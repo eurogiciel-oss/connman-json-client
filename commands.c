@@ -206,11 +206,43 @@ int __cmd_disconnect(const char *serv_dbus_name)
 			call_return_list, NULL, NULL, NULL);
 }
 
+/*
+ * The scan return of a technology is a "special" event (force auto refresh).
+ * return: { "scan_return": [ <tech name>, <error string> ]
+ * error string may not be present.
+ */
+static void scan_return(DBusMessageIter *iter, const char *error,
+		void *user_data)
+{
+	struct json_object *res, *array;
+	json_bool jerror;
+	char *path = user_data, *str;
+
+	res = json_object_new_object();
+	array = json_object_new_array();
+
+	if (path) {
+		str = strrchr(path, '/');
+		str++;
+		json_object_array_add(array, json_object_new_string(str));
+	}
+
+	if (error) {
+		json_object_array_add(array, json_object_new_string(error));
+		jerror = TRUE;
+	} else
+		jerror = FALSE;
+
+	json_object_object_add(res, key_scan_return, array);
+	free(user_data);
+	commands_callback(res, jerror);
+}
+
 int __cmd_scan(const char *tech_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
 			tech_dbus_name, "net.connman.Technology", "Scan",
-			call_return_list, NULL, NULL, NULL);
+			scan_return, strdup(tech_dbus_name), NULL, NULL);
 }
 
 /*

@@ -54,4 +54,6 @@ extern const char key_connman_path[];
 
 extern char key_agent_interface[];
 
+extern const char key_scan_return[];
+
 #endif

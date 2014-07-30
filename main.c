@@ -513,7 +513,8 @@ static void action_on_agent_error(struct json_object *jobj)
 
 void main_callback(int status, struct json_object *jobj)
 {
-	struct json_object *cmd_tmp, *signal, *agent_msg, *agent_error;
+	struct json_object *cmd_tmp, *signal, *agent_msg, *agent_error,
+			   *scan_return;
 
 	if (status < 0) {
 		print_info_in_footer2(true, "Error (code %d : %s)",
@@ -525,6 +526,7 @@ void main_callback(int status, struct json_object *jobj)
 	json_object_object_get_ex(jobj, key_dbus_json_signal_key, &signal);
 	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &agent_msg);
 	json_object_object_get_ex(jobj, key_dbus_json_agent_error_key, &agent_error);
+	json_object_object_get_ex(jobj, key_scan_return, &scan_return);
 
 	werase(win_body);
 	box(win_body, 0, 0);
@@ -541,7 +543,12 @@ void main_callback(int status, struct json_object *jobj)
 	else if (agent_error)
 		action_on_agent_error(jobj);
 
-	else
+	else if (scan_return) {
+		print_info_in_footer((status < 0),
+				json_object_get_string(scan_return));
+		print_info_in_footer2((status < 0), "'F5' to display scan results");
+
+	} else
 		print_info_in_footer(true, "Unidentified call back: "
 				"status: %d, jobj: %s\n", status,
 				json_object_get_string(jobj));
@@ -753,8 +760,7 @@ void exec_action_context_services(int ch)
 					context.tech->dbus_name != NULL &&
 					context.tech->pretty_name != NULL);
 			scan_tech(context.tech->dbus_name);
-			print_info_in_footer(false, "Scanning %s, "
-					"press 'F5' to refresh",
+			print_info_in_footer(false, "Scanning %s...",
 					context.tech->pretty_name);
 			break;
 	}

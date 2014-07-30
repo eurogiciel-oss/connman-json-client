@@ -49,3 +49,5 @@ const char key_connman_service[] = "net.connman";
 const char key_connman_path[] = "/";
 
 char key_agent_interface[] = "net.connman.Agent";
+
+const char key_scan_return[] = "scan_return";
