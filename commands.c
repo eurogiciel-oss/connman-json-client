@@ -307,7 +307,7 @@ static void config_append_ipv4(DBusMessageIter *iter,
 
 	json_object_object_foreach(jobj, key, val) {
 		str = json_object_get_string(val);
-		buf = calloc(JSON_COMMANDS_STRING_SIZE_SMALL, sizeof(char));
+		buf = malloc(sizeof(char) * JSON_COMMANDS_STRING_SIZE_SMALL);
 		strncpy(buf, str, JSON_COMMANDS_STRING_SIZE_SMALL);
 
 		dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING,
@@ -416,7 +416,7 @@ static void config_append_proxy(DBusMessageIter *iter,
 		return;
 
 	method_len = strlen(method) + 1;
-	buf = calloc(method_len, sizeof(char));
+	buf = malloc(sizeof(char) * method_len);
 	strncpy(buf, method, method_len);
 
 	dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING,

@@ -37,7 +37,6 @@ const char key_engine_get_services_from_tech[] = "get_services_from_tech";
 const char key_engine_connect[] = "connect";
 const char key_engine_disconnect[] = "disconnect";
 const char key_engine_agent_response[] = "agent_response";
-const char key_engine_agent_cancel[] = "agent_cancel";
 const char key_engine_agent_retry[] = "agent_retry";
 const char key_engine_scan_tech[] = "scan_tech";
 const char key_engine_config_service[] = "config_service";

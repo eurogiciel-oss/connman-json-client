@@ -137,14 +137,6 @@ static int agent_response(struct json_object *data)
 	return res;
 }
 
-static int agent_cancel(struct json_object *data)
-{
-	agent_cancel_request();
-	agent_data_cache = NULL;
-
-	return -EINPROGRESS;
-}
-
 /*
  * data: bool
  */
@@ -434,7 +426,6 @@ static struct {
 	{ key_engine_disconnect, disconnect_technology, true, {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ key_engine_agent_response, agent_response, false, { "" } },
-	{ key_engine_agent_cancel, agent_cancel, true, { "" } },
 	{ key_engine_agent_retry, agent_error_response, false, { "" } },
 	{ key_engine_scan_tech, scan_technology, true, {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
@@ -493,7 +484,9 @@ static bool command_data_is_clean(struct json_object *jobj, int cmd_pos)
 	assert(jcmd_data);
 
 	res = __json_type_dispatch(jobj, jcmd_data);
-	json_object_put(jcmd_data);
+
+	if (cmd_table[cmd_pos].trusted_is_json_string)
+		json_object_put(jcmd_data);
 
 	return res;
 }

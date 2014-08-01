@@ -47,7 +47,7 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 
 	for (nb_buttons = 0; popup_btn_action[nb_buttons]; nb_buttons++);
 
-	popup_items = calloc(nb_buttons+1, sizeof(ITEM *));
+	popup_items = malloc(sizeof(ITEM *) * (nb_buttons+1));
 	assert(popup_items != NULL);
 	assert(popup_btn_action != NULL);
 
@@ -82,7 +82,7 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 		return;
 	}
 
-	popup_fields = calloc(nb_fields+1, sizeof(FIELD *));
+	popup_fields = malloc(sizeof(FIELD *) * (nb_fields+1));
 	assert(popup_fields != NULL);
 
 	for (i = 0; i < nb_fields && requests[i]; i++) {
@@ -90,26 +90,17 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 		if (i % 2 == 1) {
 			popup_fields[i] = new_field(1, 41, cury, curx, 0, 0);
 			assert(popup_fields[i] != NULL);
-			set_field_buffer(popup_fields[i], 0, requests[i]);
+			set_field_buffer(popup_fields[i], 0, strdup(requests[i]));
 			cury = cury+1;
 			curx = 1;
 			field_opts_on(popup_fields[i], O_ACTIVE);
 			field_opts_on(popup_fields[i], O_EDIT);
 			field_opts_off(popup_fields[i], O_STATIC);
 			set_field_back(popup_fields[i], A_UNDERLINE); 
-			/*
-			 * Only allow input characters that can be displayed.
-			 * More advanced verification is possible but if the
-			 * user type something wrong, he won't be allowed to
-			 * quit the field until he corrected his mistake. Of
-			 * course no information whatsoever point towards the
-			 * mistake.
-			 */
-			set_field_type(popup_fields[i], TYPE_REGEXP, "^([[:print:]]*)$");
 		} else {
 			popup_fields[i] = new_field(1, 45, cury, curx, 0, 0);
 			assert(popup_fields[i] != NULL);
-			set_field_buffer(popup_fields[i], 0, requests[i]);
+			set_field_buffer(popup_fields[i], 0, strdup(requests[i]));
 			curx = strlen(requests[i]) + 2;
 			field_opts_off(popup_fields[i], O_ACTIVE);
 			field_opts_off(popup_fields[i], O_EDIT);
@@ -137,27 +128,31 @@ void popup_delete(void)
 {
 	int i;
 
-	if (popup_form)
+	if (popup_form) {
 		unpost_form(popup_form);
 
-	unpost_menu(popup_menu);
-
-	if (popup_form) {
-		for (i = 0; popup_fields[i] != NULL; i++)
+		for (i = 0; popup_fields[i] != NULL; i++) {
+			free(field_buffer(popup_fields[i], 0));
 			free_field(popup_fields[i]);
+		}
 
 		free_form(popup_form);
+		free(popup_fields);
 	}
+
+	unpost_menu(popup_menu);
+	free_menu(popup_menu);
 
 	for (i = 0; popup_items[i] != NULL; i++)
 		free_item(popup_items[i]);
 
-	free_menu(popup_menu);
+	free(popup_items);
 	delwin(win_form);
 	delwin(win_menu);
 	delwin(win_body);
 	win_body = NULL;
 	popup_btn_action = NULL;
+	popup_menu = NULL;
 }
 
 static void driver_buttons(ITEM *item)
@@ -250,10 +245,12 @@ void popup_driver(int ch)
 
 	}
 
-	if (is_on_button)
-		pos_menu_cursor(popup_menu);
-	else
-		pos_form_cursor(popup_form);
+	if (popup_menu) {
+		if (is_on_button)
+			pos_menu_cursor(popup_menu);
+		else
+			pos_form_cursor(popup_form);
+	}
 
 	wrefresh(win_body);
 }

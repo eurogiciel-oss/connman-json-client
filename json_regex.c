@@ -76,8 +76,6 @@ void generate_trusted_json(void)
 	arr = json_object_new_array();
 	json_object_array_add(arr, json_object_new_string("^([[:print:]]+)$"));
 	json_object_object_add(tmp, "Excludes", arr);
-	arr = json_object_new_array();
-	json_object_array_add(arr, json_object_new_string("^([[:print:]]+)$"));
 	json_object_object_add(opt, "Proxy.Configuration", tmp);
 	json_object_object_add(opt, "AutoConnect", json_object_new_boolean(TRUE));
 	arr = json_object_new_array();

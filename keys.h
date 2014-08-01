@@ -40,7 +40,6 @@ extern const char key_engine_get_services_from_tech[];
 extern const char key_engine_connect[];
 extern const char key_engine_disconnect[];
 extern const char key_engine_agent_response[];
-extern const char key_engine_agent_cancel[];
 extern const char key_engine_agent_error_response[];
 extern const char key_engine_agent_retry[];
 extern const char key_engine_scan_tech[];

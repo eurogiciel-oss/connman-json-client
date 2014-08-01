@@ -93,6 +93,52 @@ void callback_ended(void)
 	return;
 }
 
+static void context_free_userptr_data()
+{
+	if (context.serv) {
+		if (context.serv->dbus_name) {
+			free(context.serv->dbus_name);
+			context.serv->dbus_name = NULL;
+		}
+
+		if (context.serv->pretty_name) {
+			free(context.serv->pretty_name);
+			context.serv->pretty_name = NULL;
+		}
+	}
+
+	if (context.tech) {
+		if (context.tech->dbus_name) {
+			free(context.tech->dbus_name);
+			context.tech->dbus_name = NULL;
+		}
+
+		if (context.tech->pretty_name) {
+			free(context.tech->pretty_name);
+			context.tech->pretty_name = NULL;
+		}
+	}
+
+}
+
+static void popup_free(void)
+{
+	int i = 0;
+
+	assert(popup_btn_action != NULL);
+
+	while (popup_btn_action[i]) {
+		free(popup_btn_action[i]->key);
+		free(popup_btn_action[i]);
+		popup_btn_action[i] = NULL;
+		i++;
+	}
+
+	free(popup_btn_action);
+	popup_delete();
+	exec_refresh();
+}
+
 void stop_loop(int signum)
 {
 	loop_quit();
@@ -100,9 +146,15 @@ void stop_loop(int signum)
 	if (context_actions[context.current_context].func_free)
 		context_actions[context.current_context].func_free();
 
+	if (popup_exists())
+		popup_free();
+
 	engine_terminate();
+	context_free_userptr_data();
 	free(context.serv);
 	free(context.tech);
+	context.serv = NULL;
+	context.tech = NULL;
 }
 
 void exec_refresh()
@@ -207,20 +259,7 @@ void exec_action(struct userptr_data *data)
 
 void exec_back(void)
 {
-	if (context.serv && context.serv->dbus_name && context.serv->pretty_name) {
-		free(context.serv->dbus_name);
-		free(context.serv->pretty_name);
-	}
-
-	if (context.tech && context.tech->dbus_name && context.tech->pretty_name) {
-		free(context.tech->dbus_name);
-		free(context.tech->pretty_name);
-	}
-
-	context.serv->dbus_name = NULL;
-	context.serv->pretty_name = NULL;
-	context.tech->dbus_name = NULL;
-	context.tech->pretty_name = NULL;
+	context_free_userptr_data();
 	context_actions[context.current_context].func_free();
 	context_actions[context.current_context].func_back();
 
@@ -288,26 +327,6 @@ void action_on_signal(struct json_object *jobj)
 	}
 }
 
-static void popup_free(void)
-{
-	int i = 0;
-
-	free(agent_request_input_fields);
-	assert(popup_btn_action != NULL);
-
-	while (popup_btn_action[i]) {
-		free(popup_btn_action[i]->key);
-		free(popup_btn_action[i]);
-		popup_btn_action[i]->key = NULL;
-		popup_btn_action[i] = NULL;
-		i++;
-	}
-
-	agent_request_input_fields = NULL;
-	popup_delete();
-	exec_refresh();
-}
-
 static void popup_btn_action_ok(void)
 {
 	struct json_object *cmd, *cmd_data;
@@ -339,17 +358,6 @@ static void popup_btn_action_ok(void)
 	}
 
 	json_object_object_add(cmd, key_command_data, cmd_data);
-	engine_query(cmd);
-	popup_free();
-}
-
-static void popup_btn_action_quit(void)
-{
-	struct json_object *cmd;
-
-	cmd = json_object_new_object();
-	json_object_object_add(cmd, key_command,
-			json_object_new_string(key_engine_agent_cancel));
 	engine_query(cmd);
 	popup_free();
 }
@@ -391,24 +399,20 @@ static void agent_input_popup(const char *serv_name, struct json_object *data)
 	const char *value_str;
 	// Arguments as in connman/doc/agent-api.txt
 	struct json_object *type, *req, *alt, *value;
-	struct popup_actions *popup_btn_ok, *popup_btn_quit;
+	struct popup_actions *popup_btn_ok;
 
 	json_object_object_foreach(data, _key, _val) {
 		assert(_key && _val);
 		len++;
 	}
 
-	agent_request_input_fields = calloc(len * 2 + 1, sizeof(char *));
+	agent_request_input_fields = malloc(sizeof(char *) * (len * 2 + 1));
 	popup_btn_ok = malloc(sizeof(struct popup_actions));
-	popup_btn_quit = malloc(sizeof(struct popup_actions));
 	popup_btn_ok->key = strdup("OK");
 	popup_btn_ok->func = popup_btn_action_ok;
-	popup_btn_quit->key = strdup("QUIT");
-	popup_btn_quit->func = popup_btn_action_quit;
-	popup_btn_action = calloc(3, sizeof(struct popup_actions *));
+	popup_btn_action = malloc(sizeof(struct popup_actions *) * 2);
 	popup_btn_action[0] = popup_btn_ok;
-	popup_btn_action[1] = popup_btn_quit;
-	popup_btn_action[2] = NULL;
+	popup_btn_action[1] = NULL;
 	i = 0;
 
 	json_object_object_foreach(data, key, val) {
@@ -448,6 +452,7 @@ static void action_on_agent_msg(struct json_object *jobj)
 	const char *request_str, *service_str, *fmt = "The network %s request"
 		" credentials";
 	char buf[150];
+	int i;
 
 	assert(!popup_exists());
 	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &request);
@@ -477,6 +482,12 @@ static void action_on_agent_msg(struct json_object *jobj)
 			agent_request_input_fields, buf);
 	assert(popup_exists());
 	popup_refresh();
+
+	for (i = 0; agent_request_input_fields[i]; i++)
+		free(agent_request_input_fields[i]);
+
+	free(agent_request_input_fields);
+	agent_request_input_fields = NULL;
 }
 
 /*
@@ -505,7 +516,7 @@ static void action_on_agent_error(struct json_object *jobj)
 	snprintf(buf, 150, fmt, error_msg_str, service_str, msg_str);
 	buf[149] = '\0';
 
-	popup_btn_action = calloc(3, sizeof(struct popup_actions *));
+	popup_btn_action = malloc(sizeof(struct popup_actions *) * 3);
 	popup_btn_yes = malloc(sizeof(struct popup_actions));
 	popup_btn_yes->key = strdup("YES");
 	popup_btn_yes->func = popup_btn_action_retry_ok;
@@ -865,6 +876,10 @@ int main(void)
 	assert(context.serv != NULL);
 	context.tech = malloc(sizeof(struct userptr_data));
 	assert(context.tech != NULL);
+	context.serv->dbus_name = NULL;
+	context.serv->pretty_name = NULL;
+	context.tech->dbus_name = NULL;
+	context.tech->pretty_name = NULL;
 
 	// get_home_page (and render it)
 	cmd = json_object_new_object();

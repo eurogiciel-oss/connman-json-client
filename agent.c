@@ -296,7 +296,7 @@ static DBusMessage *agent_report_error(DBusConnection *connection,
 	tmp = format_agent_error(error, service);
 	format_agent_with_callback(tmp, "Retry ?", "report_error_return");
 
-	agent_request.message = message;
+	agent_request.message = dbus_message_ref(message);
 	agent_callback(tmp, &agent_request);
 
 	return NULL;
@@ -471,7 +471,6 @@ int json_to_agent_response(struct json_object *jobj,
 			&dict);
 
 	res = json_to_dbus_dict(jobj, &dict);
-	json_object_put(jobj);
 
 	dbus_message_iter_close_container(&iter, &dict);
 

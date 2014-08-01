@@ -104,7 +104,7 @@ static void renderers_technologies(struct json_object *jobj)
 	struct userptr_data *data;
 
 	nb_items = json_object_array_length(jobj);
-	my_items = calloc(nb_items+1, sizeof(ITEM*));
+	my_items = malloc(sizeof(ITEM*) * (nb_items+1));
 	assert(my_items != NULL && nb_items > 0);
 
 	for (i = 0; i < nb_items; i++) {
@@ -143,13 +143,14 @@ static void renderers_technologies(struct json_object *jobj)
 			__extract_dbus_short_name(json_object_get_string(dbus_tech_name));
 		my_items[i] = new_item(tech_short_name, desc);
 
-		data = malloc(sizeof(struct userptr_data *));
+		data = malloc(sizeof(struct userptr_data));
 		assert(data != NULL);
 		data->dbus_name = strdup(json_object_get_string(dbus_tech_name));
 		data->pretty_name = strdup(k_name);
 		set_item_userptr(my_items[i], data);
 	}
 
+	my_items[nb_items] = NULL;
 	my_menu = new_menu(my_items);
 	set_menu_win(my_menu, win_body);
 	set_menu_sub(my_menu, derwin(win_body, win_body_lines-2, COLS-4, 3, 2));
@@ -226,6 +227,8 @@ void __renderers_free_home_page(void)
 	free_menu(my_menu);
 	free(my_items);
 	nb_items = 0;
+	my_menu = NULL;
+	my_items = NULL;
 }
 
 /*
@@ -327,7 +330,6 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 			is_modifiable = false;
 		} else {
 			// insert the page delimiter
-			//if (cur_y % (win_body_lines - 1) == 0) {
 			if (cur_y+1 >= win_body_lines-2) {
 				cur_y = 1;
 				set_new_page(field[(*pos)-1], TRUE);
@@ -342,25 +344,13 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 			if (is_modifiable || is_autoconnect) {
 				field_opts_on(field[*pos], O_EDIT);
 				set_field_back(field[*pos], A_UNDERLINE);
-				/*
-				 * Only allow input characters that can be displayed.
-				 * More advanced verification is possible but if the
-				 * user type something wrong, he won't be allowed to
-				 * quit the field until he corrected his mistake. Of
-				 * course no information whatsoever point towards the
-				 * mistake.
-				 */
-				set_field_type(field[*pos], TYPE_REGEXP, "^([[:print:]]*)$");
-
-				if (is_autoconnect)
-					set_field_type(field[*pos], TYPE_ENUM,
-							true_false_enum, 0, 1);
 			} else
 				field_opts_off(field[*pos], O_EDIT);
 
 			field_opts_on(field[*pos], O_NULLOK);
-			data = malloc(sizeof(struct userptr_data *));
+			data = malloc(sizeof(struct userptr_data));
 			data->dbus_name = strdup(get_str_key());
+			data->pretty_name = NULL;
 			set_field_userptr(field[*pos], data);
 
 			(*pos)++;
@@ -384,7 +374,7 @@ static void renderers_service_config(struct json_object *tech_array,
 	// We compute how many fields we will need
 	longest_key_len = compute_nb_elems_in_service(serv_dict);
 
-	field = calloc(nb_fields + 1, sizeof(ITEM *));
+	field = malloc(sizeof(ITEM *) * (nb_fields + 1));
 	longest_key_len += 4; // For padding
 	i = 0;
 
@@ -502,7 +492,7 @@ static void renderers_services_wifi(struct json_object *jobj)
 
 		my_items[i] = new_item(desc, "");
 
-		data = malloc(sizeof(struct userptr_data *));
+		data = malloc(sizeof(struct userptr_data));
 		assert(data != NULL);
 		data->dbus_name = strdup(serv_name_str);
 		data->pretty_name = strdup(essid_str);
@@ -528,7 +518,7 @@ static void renderers_services(struct json_object *jobj)
 	dbus_long_name = json_object_array_get_idx(array, 0);
 
 	dbus_short_name = __extract_dbus_short_name(json_object_get_string(dbus_long_name));
-	my_items = calloc(nb_items+1, sizeof(ITEM *));
+	my_items = malloc(sizeof(ITEM *) * (nb_items+1));
 	assert(my_items != NULL);
 
 	if (strncmp(dbus_short_name, "ethernet_", 9) == 0)
@@ -566,7 +556,6 @@ void __renderers_free_services(void)
 	unpost_menu(my_menu);
 
 	for (i = 0; i < nb_items; i++) {
-		//free((void *) item->name.str);
 		data = item_userptr(my_items[i]);
 		free((void *) data->dbus_name);
 		free((void *) data->pretty_name);
@@ -615,7 +604,12 @@ void __renderers_free_service_config(void)
 		tmp = field_userptr(field[i]);
 
 		if (tmp) {
-			free(tmp->dbus_name);
+			if (tmp->dbus_name)
+				free(tmp->dbus_name);
+
+			if (tmp->pretty_name)
+				free(tmp->pretty_name);
+
 			free(tmp);
 		}
 
