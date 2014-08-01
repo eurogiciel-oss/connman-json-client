@@ -70,6 +70,7 @@ void connect_to_service();
 void print_home_page(void);
 void exec_refresh(void);
 
+static bool allow_refresh = false;
 static char **agent_request_input_fields;
 
 static struct {
@@ -94,8 +95,6 @@ void callback_ended(void)
 
 void stop_loop(int signum)
 {
-	//int i;
-
 	loop_quit();
 
 	if (context_actions[context.current_context].func_free)
@@ -182,6 +181,7 @@ void repos_cursor(void)
 
 	free(context.cursor_id);
 	context.cursor_id = NULL;
+	wrefresh(win_body);
 }
 
 void exec_action(struct userptr_data *data)
@@ -251,7 +251,9 @@ static void action_on_cmd_callback(struct json_object *jobj)
 void action_on_signal(struct json_object *jobj)
 {
 	struct json_object *sig_path, *sig_data;
-	bool is_tech_removed, is_current_tech;
+	json_bool tmp_bool;
+	bool is_tech_removed, is_current_tech, got_connected;
+	const char *tmp_str;
 
 	json_object_object_get_ex(jobj, key_command_path, &sig_path);
 	json_object_object_get_ex(jobj, key_command_data, &sig_data);
@@ -266,10 +268,23 @@ void action_on_signal(struct json_object *jobj)
 	if (is_tech_removed && is_current_tech)
 		exec_back();
 	else {
+		got_connected = false;
+
+		if (sig_data && json_object_get_type(sig_data) == json_type_array) {
+			tmp_str = json_object_get_string(json_object_array_get_idx(sig_data, 0));
+			tmp_bool = json_object_get_boolean(json_object_array_get_idx(sig_data, 1));
+			
+			if (tmp_str && strcmp("Connected", tmp_str) == 0 && tmp_bool)
+				got_connected = true;
+		}
+
 		// This is to prevent always changing wifi services in areas
 		// with a load of networks
-		if (context.current_context != CONTEXT_SERVICES)
+		if (context.current_context != CONTEXT_SERVICES ||
+				(allow_refresh || got_connected)) {
 			exec_refresh();
+			allow_refresh = false;
+		}
 	}
 }
 
@@ -300,7 +315,6 @@ static void popup_btn_action_ok(void)
 	char *label_str, *field_str;
 	char *label_str_clean, *field_str_clean;
 
-	print_info_in_footer(false, "Popup action ok");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_agent_response));
@@ -333,7 +347,6 @@ static void popup_btn_action_quit(void)
 {
 	struct json_object *cmd;
 
-	print_info_in_footer(false, "Popup action quit");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_agent_cancel));
@@ -349,19 +362,19 @@ static void popup_btn_action_retry(int retry)
 	struct json_object *cmd;
 
 	cmd = json_object_new_object();
-	json_object_object_add(cmd, key_engine_agent_response,
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_agent_retry));
+	json_object_object_add(cmd, key_command_data,
 			json_object_new_boolean(retry));
 
 	engine_query(cmd);
 	popup_free();
 }
 
-/* Retry currently don't behave as expected
 static void popup_btn_action_retry_ok(void)
 {
 	popup_btn_action_retry(TRUE);
 }
-*/
 
 static void popup_btn_action_retry_no(void)
 {
@@ -385,14 +398,14 @@ static void agent_input_popup(const char *serv_name, struct json_object *data)
 		len++;
 	}
 
-	agent_request_input_fields = malloc(sizeof(char *) * len * 2 + 1);
+	agent_request_input_fields = calloc(len * 2 + 1, sizeof(char *));
 	popup_btn_ok = malloc(sizeof(struct popup_actions));
 	popup_btn_quit = malloc(sizeof(struct popup_actions));
 	popup_btn_ok->key = strdup("OK");
 	popup_btn_ok->func = popup_btn_action_ok;
 	popup_btn_quit->key = strdup("QUIT");
 	popup_btn_quit->func = popup_btn_action_quit;
-	popup_btn_action = malloc(sizeof(struct popup_actions *) * 3);
+	popup_btn_action = calloc(3, sizeof(struct popup_actions *));
 	popup_btn_action[0] = popup_btn_ok;
 	popup_btn_action[1] = popup_btn_quit;
 	popup_btn_action[2] = NULL;
@@ -463,7 +476,6 @@ static void action_on_agent_msg(struct json_object *jobj)
 	popup_new(18, 76, (LINES-17)/2, (COLS-75)/2,
 			agent_request_input_fields, buf);
 	assert(popup_exists());
-	print_info_in_footer(false, "%s\n", json_object_get_string(jobj));
 	popup_refresh();
 }
 
@@ -471,54 +483,56 @@ static void action_on_agent_msg(struct json_object *jobj)
 	{
 		"ERROR Agent": "invalid-key",
 		"service": "wifi_XXXXXXXXXXXX_YYYYYYYYYYYYYY_managed_psk",
-		"msg": "Retry ?",
+		"agent_error_message": "Retry ?",
 		"callback": "report_error_return"
 	}
  */
 static void action_on_agent_error(struct json_object *jobj)
 {
 	char *fmt = "Agent error: %s on \"%s\", %s", buf[150];
-	const char *error_msg_str, *service_str;
+	const char *error_msg_str, *service_str, *msg_str;
 	struct json_object *tmp;
-	struct popup_actions *popup_btn_no;
+	struct popup_actions *popup_btn_no, *popup_btn_yes;
 
 	assert(!popup_exists());
 	json_object_object_get_ex(jobj, key_dbus_json_agent_error_key, &tmp);
 	error_msg_str = json_object_get_string(tmp);
 	json_object_object_get_ex(jobj, key_service, &tmp);
 	service_str = json_object_get_string(tmp);
+	json_object_object_get_ex(jobj, key_agent_error_message, &tmp);
+	msg_str = json_object_get_string(tmp);
 
-	snprintf(buf, 150, fmt, error_msg_str, service_str);
+	snprintf(buf, 150, fmt, error_msg_str, service_str, msg_str);
 	buf[149] = '\0';
 
-	/* Retry won't work... thus i only inform the user that it failed
-	popup_btn_action = malloc(sizeof(struct popup_actions *) * 3);
+	popup_btn_action = calloc(3, sizeof(struct popup_actions *));
 	popup_btn_yes = malloc(sizeof(struct popup_actions));
 	popup_btn_yes->key = strdup("YES");
 	popup_btn_yes->func = popup_btn_action_retry_ok;
 	popup_btn_action[0] = popup_btn_yes;
-	*/
-	popup_btn_action = malloc(sizeof(struct popup_actions *) * 2);
 	popup_btn_no = malloc(sizeof(struct popup_actions));
-	popup_btn_no->key = strdup("OK");
+	popup_btn_no->key = strdup("NO");
 	popup_btn_no->func = popup_btn_action_retry_no;
-	popup_btn_action[0] = popup_btn_no;
-	popup_btn_action[1] = NULL;
+	popup_btn_action[1] = popup_btn_no;
+	popup_btn_action[2] = NULL;
 
 	popup_new(16, 76, (LINES-15)/2, (COLS-75)/2, NULL, buf);
 	assert(popup_exists());
-	print_info_in_footer(true, "%s\n", json_object_get_string(jobj));
 	popup_refresh();
 }
 
 void main_callback(int status, struct json_object *jobj)
 {
 	struct json_object *cmd_tmp, *signal, *agent_msg, *agent_error,
-			   *scan_return;
+			*return_user_data, *error;
+	const char *error_str;
+
+	json_object_object_get_ex(jobj, key_dbus_json_error_key, &error);
+	error_str = json_object_get_string(error);
 
 	if (status < 0) {
-		print_info_in_footer2(true, "Error (code %d : %s)",
-				-status, strerror(-status));
+		print_info_in_footer2(true, "Error (code %d) %s", -status,
+				error_str ? error_str : "[ no error message ]");
 	}
 
 	/* get the main object items */
@@ -526,10 +540,7 @@ void main_callback(int status, struct json_object *jobj)
 	json_object_object_get_ex(jobj, key_dbus_json_signal_key, &signal);
 	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &agent_msg);
 	json_object_object_get_ex(jobj, key_dbus_json_agent_error_key, &agent_error);
-	json_object_object_get_ex(jobj, key_scan_return, &scan_return);
-
-	werase(win_body);
-	box(win_body, 0, 0);
+	json_object_object_get_ex(jobj, key_return_force_refresh, &return_user_data);
 
 	if (cmd_tmp)
 		action_on_cmd_callback(jobj);
@@ -543,10 +554,9 @@ void main_callback(int status, struct json_object *jobj)
 	else if (agent_error)
 		action_on_agent_error(jobj);
 
-	else if (scan_return) {
-		print_info_in_footer((status < 0),
-				json_object_get_string(scan_return));
-		print_info_in_footer2((status < 0), "'F5' to display scan results");
+	else if (return_user_data) {
+		allow_refresh = true;
+		exec_refresh();
 
 	} else
 		print_info_in_footer(true, "Unidentified call back: "

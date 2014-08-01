@@ -47,7 +47,7 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 
 	for (nb_buttons = 0; popup_btn_action[nb_buttons]; nb_buttons++);
 
-	popup_items = malloc(sizeof(ITEM *) * (nb_buttons+1));
+	popup_items = calloc(nb_buttons+1, sizeof(ITEM *));
 	assert(popup_items != NULL);
 	assert(popup_btn_action != NULL);
 
@@ -82,7 +82,7 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 		return;
 	}
 
-	popup_fields = malloc(sizeof(FIELD *) * (nb_fields+1));
+	popup_fields = calloc(nb_fields+1, sizeof(FIELD *));
 	assert(popup_fields != NULL);
 
 	for (i = 0; i < nb_fields && requests[i]; i++) {

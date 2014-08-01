@@ -25,6 +25,7 @@ extern const char key_technologies[];
 extern const char key_technology[];
 extern const char key_service[];
 extern const char key_services[];
+extern const char key_options[];
 
 extern const char key_command[];
 extern const char key_command_data[];
@@ -43,6 +44,7 @@ extern const char key_engine_agent_cancel[];
 extern const char key_engine_agent_error_response[];
 extern const char key_engine_agent_retry[];
 extern const char key_engine_scan_tech[];
+extern const char key_engine_config_service[];
 
 extern const char key_dbus_json_success_key[];
 extern const char key_dbus_json_error_key[];
@@ -53,7 +55,10 @@ extern const char key_connman_service[];
 extern const char key_connman_path[];
 
 extern char key_agent_interface[];
+extern const char key_agent_error_message[];
 
 extern const char key_scan_return[];
+extern const char key_connect_return[];
+extern const char key_return_force_refresh[];
 
 #endif

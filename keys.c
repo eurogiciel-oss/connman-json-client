@@ -22,6 +22,7 @@ const char key_technologies[] = "technologies";
 const char key_technology[] = "technology";
 const char key_service[] = "service";
 const char key_services[] = "services";
+const char key_options[] = "options";
 
 const char key_command[] = "command";
 const char key_command_data[] = "cmd_data";
@@ -39,6 +40,7 @@ const char key_engine_agent_response[] = "agent_response";
 const char key_engine_agent_cancel[] = "agent_cancel";
 const char key_engine_agent_retry[] = "agent_retry";
 const char key_engine_scan_tech[] = "scan_tech";
+const char key_engine_config_service[] = "config_service";
 
 const char key_dbus_json_success_key[] = "OK";
 const char key_dbus_json_error_key[] = "ERROR";
@@ -49,5 +51,8 @@ const char key_connman_service[] = "net.connman";
 const char key_connman_path[] = "/";
 
 char key_agent_interface[] = "net.connman.Agent";
+const char key_agent_error_message[] = "agent_error_message";
 
 const char key_scan_return[] = "scan_return";
+const char key_connect_return[] = "connect_return";
+const char key_return_force_refresh[] = "return_force_refresh";

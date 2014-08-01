@@ -91,9 +91,6 @@ static void call_return_list(DBusMessageIter *iter, const char *error,
 		res = json_object_new_object();
 		array = json_object_new_array();
 
-		if (user_data)
-			json_object_array_add(array, json_object_new_string(user_data));
-
 		json_object_array_add(array, json_object_new_string(error));
 		json_object_object_add(res, key_dbus_json_error_key, array);
 		jerror = TRUE;
@@ -101,7 +98,14 @@ static void call_return_list(DBusMessageIter *iter, const char *error,
 	} else {
 		res = dbus_to_json(iter);
 		jerror = FALSE;
+
+		if (!res)
+			res = json_object_new_object();
 	}
+
+	if (user_data)
+		json_object_object_add(res, key_return_force_refresh,
+			json_object_new_string((const char*)user_data));
 
 	commands_callback(res, jerror);
 }
@@ -196,7 +200,8 @@ int __cmd_connect(const char *serv_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
 			serv_dbus_name, "net.connman.Service", "Connect",
-			call_return_list, NULL, NULL, NULL);
+			call_return_list_free, strdup(key_connect_return), NULL,
+			NULL);
 }
 
 int __cmd_disconnect(const char *serv_dbus_name)
@@ -206,43 +211,11 @@ int __cmd_disconnect(const char *serv_dbus_name)
 			call_return_list, NULL, NULL, NULL);
 }
 
-/*
- * The scan return of a technology is a "special" event (force auto refresh).
- * return: { "scan_return": [ <tech name>, <error string> ]
- * error string may not be present.
- */
-static void scan_return(DBusMessageIter *iter, const char *error,
-		void *user_data)
-{
-	struct json_object *res, *array;
-	json_bool jerror;
-	char *path = user_data, *str;
-
-	res = json_object_new_object();
-	array = json_object_new_array();
-
-	if (path) {
-		str = strrchr(path, '/');
-		str++;
-		json_object_array_add(array, json_object_new_string(str));
-	}
-
-	if (error) {
-		json_object_array_add(array, json_object_new_string(error));
-		jerror = TRUE;
-	} else
-		jerror = FALSE;
-
-	json_object_object_add(res, key_scan_return, array);
-	free(user_data);
-	commands_callback(res, jerror);
-}
-
 int __cmd_scan(const char *tech_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
 			tech_dbus_name, "net.connman.Technology", "Scan",
-			scan_return, strdup(tech_dbus_name), NULL, NULL);
+			call_return_list_free, strdup(key_scan_return), NULL, NULL);
 }
 
 /*
@@ -334,7 +307,7 @@ static void config_append_ipv4(DBusMessageIter *iter,
 
 	json_object_object_foreach(jobj, key, val) {
 		str = json_object_get_string(val);
-		buf = malloc(sizeof(char) * JSON_COMMANDS_STRING_SIZE_SMALL);
+		buf = calloc(JSON_COMMANDS_STRING_SIZE_SMALL, sizeof(char));
 		strncpy(buf, str, JSON_COMMANDS_STRING_SIZE_SMALL);
 
 		dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING,
@@ -443,7 +416,7 @@ static void config_append_proxy(DBusMessageIter *iter,
 		return;
 
 	method_len = strlen(method) + 1;
-	buf = malloc(sizeof(char) * method_len);
+	buf = calloc(method_len, sizeof(char));
 	strncpy(buf, method, method_len);
 
 	dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING,
@@ -452,58 +425,47 @@ static void config_append_proxy(DBusMessageIter *iter,
 }
 
 /*
-   {
-   "service": "wifi_8888_8888_none",
-   "options": {
-   "IPv4": {
-   "Method": "dhcp"|"manual"|"off",
-   "Address": "xxxx",
-   "Netmask": "xxxx",
-   "Gateway": "xxxx"
-   },
-   "IPv6": {
-   "Method": "auto"|"manual"|"6to4"|"off",
-   "Address": "xxxx",
-   "PrefixLength": 12,
-   "Gateway": "xxxx",
-   "Privacy": "auto"|"disabled"|"enabled"|"prefered"
-   },
-   "Proxy":{
-   "Method": "direct"|"auto"|"manual",
-   "URL": "proxyurl",
-   "Servers": [ "proxyserver1", "proxyserver1" ],
-   "Excludes": [ "proxyserver1" ]
-   },
-   "AutoConnect": FALSE|TRUE,
-   "Domains": [ "domainserver1", "domainserver2" ],
-   "Nameservers": [ "nameserver1", "nameserver2" ],
-   "Timeservers": [ "timeserver1", "timeserver2" ]
-   }
-   }
+ * Note that option names are the same as the ones in connman/doc/services-api.txt
  *
- * Note that option names are the same as the ones in the doc/services-api.txt
+   "options": {
+	   "IPv4.Configuration": {
+		   "Method": "dhcp"|"manual"|"off",
+		   "Address": "xxxx",
+		   "Netmask": "xxxx",
+		   "Gateway": "xxxx"
+	   },
+	   "IPv6.Configuration": {
+		   "Method": "auto"|"manual"|"6to4"|"off",
+		   "Address": "xxxx",
+		   "PrefixLength": 12,
+		   "Gateway": "xxxx",
+		   "Privacy": "auto"|"disabled"|"enabled"|"prefered"
+	   },
+	   "Proxy.Configuration": {
+		   "Method": "direct"|"auto"|"manual",
+		   "URL": "proxyurl",
+		   "Servers": [ "proxyserver1", "proxyserver1" ],
+		   "Excludes": [ "proxyserver1" ]
+	   },
+	   "AutoConnect": FALSE|TRUE,
+	   "Domains.Configuration": [ "domainserver1", "domainserver2" ],
+	   "Nameservers.Configuration: [ "nameserver1", "nameserver2" ],
+	   "Timeservers.Configuration: [ "timeserver1", "timeserver2" ]
+   }
  */
-static int cmd_config(struct json_object *jobj)
+int __cmd_config_service(const char *service_name, struct json_object *options)
 {
 	int res = 0;
-	const char *service_name;
 	char *path, *simple_service_conf, *dyn_service_name;
 	dbus_bool_t dbus_bool;
-	struct json_object *options, *srvobj;
 
-	if (!json_object_object_get_ex(jobj, key_service, &srvobj)) {
-		call_return_list(NULL, "No 'service' set", "");
-		return -EINVAL;
-	}
-
-	service_name = json_object_get_string(srvobj);
 	if (!service_name || check_dbus_name(service_name) == false) {
 		call_return_list(NULL, "Wrong service name",
 				"Service set properties.");
 		return -EINVAL;
 	}
 
-	if (!json_object_object_get_ex(jobj, "options", &options)) {
+	if (!options) {
 		call_return_list(NULL, "No options provided for service "
 				"configuration", "");
 		return -EINVAL;
@@ -519,21 +481,21 @@ static int cmd_config(struct json_object *jobj)
 		dyn_service_name = strndup(service_name,
 				JSON_COMMANDS_STRING_SIZE_MEDIUM);
 
-		if (strcmp("IPv4", key) == 0) {
+		if (strcmp("IPv4.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
 					path, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"IPv4.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv4, val);
 
-		} else if (strcmp("IPv6", key) == 0) {
+		} else if (strcmp("IPv6.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
 					path, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"IPv6.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv6, val);
 
-		} else if (strcmp("Proxy", key) == 0) {
+		} else if (strcmp("Proxy.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
 					path, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
@@ -552,14 +514,14 @@ static int cmd_config(struct json_object *jobj)
 					dyn_service_name, "AutoConnect",
 					DBUS_TYPE_BOOLEAN, &dbus_bool);
 
-		} else if (strcmp("Domains", key) == 0)
-			simple_service_conf = "Domains.Configuration";
+		} else if (strcmp("Domains.Configuration", key) == 0)
+			simple_service_conf = key;
 
-		else if (strcmp("Nameservers", key) == 0)
-			simple_service_conf = "Nameservers.Configuration";
+		else if (strcmp("Nameservers.Configuration", key) == 0)
+			simple_service_conf = key;
 
-		else if (strcmp("Timeservers", key) == 0)
-			simple_service_conf = "Timeservers.Configuration";
+		else if (strcmp("Timeservers.Configuration", key) == 0)
+			simple_service_conf = key;
 		else {
 			char *str = strndup(key, JSON_COMMANDS_STRING_SIZE_SMALL);
 			call_return_list_free(NULL, "Unknown configuration key", str);
@@ -820,10 +782,11 @@ int command_dispatcher(DBusConnection *dbus_conn,
 	if (!json_object_object_get_ex(jobj, "data", &data))
 		data = NULL;
 
+	/*
 	if (strcmp(command, "config") == 0)
-		res = cmd_config(data);
+		res = __cmd_config_service(data);
 
-	else if (strcmp(command, "remove") == 0)
+	else*/ if (strcmp(command, "remove") == 0)
 		res = cmd_remove(data);
 
 	else if (strcmp(command, "disconnect") == 0)

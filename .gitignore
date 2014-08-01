@@ -16,3 +16,5 @@ stamp-h1
 *.swp
 *.log
 build-aux/
+TODO
+test_agent.c

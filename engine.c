@@ -40,6 +40,7 @@
 DBusConnection *connection;
 struct json_object *jregex_agent_response;
 struct json_object *jregex_agent_retry_response;
+struct json_object *jregex_config_service;
 
 static DBusConnection *agent_dbus_conn;
 
@@ -390,6 +391,23 @@ static int scan_technology(struct json_object *jobj)
 	return __cmd_scan(tech_dbus_name);
 }
 
+static int config_service(struct json_object *jobj)
+{
+	struct json_object *tmp, *opt;
+	const char *serv_dbus_name;
+
+	json_object_object_get_ex(jobj, key_service, &tmp);
+	serv_dbus_name = json_object_get_string(tmp);
+	tmp = get_service(serv_dbus_name);
+
+	if (tmp == NULL)
+		return -EINVAL;
+	
+	json_object_object_get_ex(jobj, key_options, &opt);
+
+	return __cmd_config_service(serv_dbus_name, jobj);
+}
+
 static struct {
 	const char *cmd;
 	int (*func)(struct json_object *jobj);
@@ -420,6 +438,7 @@ static struct {
 	{ key_engine_agent_retry, agent_error_response, false, { "" } },
 	{ key_engine_scan_tech, scan_technology, true, {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+	{ key_engine_config_service, config_service, false, { "" } },
 	{ NULL, }, // this is a sentinel
 };
 
@@ -438,6 +457,9 @@ static void init_cmd_table(void)
 
 			else if (strncmp(key_engine_agent_retry, cmd_table[i].cmd, 50) == 0)
 				cmd_table[i].trusted.trusted_jobj = jregex_agent_retry_response;
+
+			else if (strncmp(key_engine_config_service, cmd_table[i].cmd, 50) == 0)
+				cmd_table[i].trusted.trusted_jobj = jregex_config_service;
 		}
 	}
 }

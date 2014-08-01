@@ -125,6 +125,10 @@ bool __json_type_dispatch(struct json_object *jobj,
 			res = json_match_array(jobj, jtrusted);
 			break;
 
+		case json_type_boolean:
+			res = true;
+			break;
+
 		default:
 			res = false;
 			break;

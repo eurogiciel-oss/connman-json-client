@@ -157,11 +157,11 @@ static void renderers_technologies(struct json_object *jobj)
 	set_menu_format(my_menu, win_body_lines-3, 1);
 	assert(post_menu(my_menu) == E_OK);
 
+	repos_cursor();
 	wnoutrefresh(win_header);
 	wnoutrefresh(win_body);
 	wnoutrefresh(win_footer);
 	doupdate();
-	repos_cursor();
 }
 
 /*
@@ -194,6 +194,8 @@ void __renderers_home_page(struct json_object *jobj)
 	json_object_object_get_ex(jobj, "technologies", &tech);
 	json_object_object_get_ex(jobj, "state", &state);
 
+	werase(win_body);
+	box(win_body, 0, 0);
 	mvwprintw(win_body, 1, 2, "Technologies:");
 
 	renderers_state(state);
@@ -425,7 +427,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "%-33s\n", "Name");
+	mvwprintw(win_body, 3, 2, "%-33s", "Name");
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
@@ -455,14 +457,14 @@ static void renderers_services_ethernet(struct json_object *jobj)
 static void renderers_services_wifi(struct json_object *jobj)
 {
 	int i;
-	// eSSID  Security  Signal strengh
-	char *desc_base = "%-33s%20s%17s%u%%", *desc;
-	const char *essid_str, *security_str, *serv_name_str;
+	// eSSID  State  Security  Signal strengh
+	char *desc_base = "%-33s%-17s%-19s%u%%", *desc;
+	const char *essid_str, *state_str, *security_str, *serv_name_str;
 	uint8_t signal_strength;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "%-33s%20s%20s\n", "eSSID", "Security", "Signal"
+	mvwprintw(win_body, 3, 2, "%-33s%-17s%-10s%17s", "eSSID", "State", "Security", "Signal"
 			" Strength");
 
 	for (i = 0; i < nb_items; i++) {
@@ -486,10 +488,14 @@ static void renderers_services_wifi(struct json_object *jobj)
 		assert(tmp != NULL);
 		signal_strength = (uint8_t) json_object_get_int(tmp);
 
+		json_object_object_get_ex(serv_dict, "State", &tmp);
+		assert(tmp != NULL);
+		state_str = json_object_get_string(tmp);
+
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
 		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base, essid_str,
-			security_str, "", signal_strength);
+			state_str, security_str, signal_strength);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 
 		serv_name_str = json_object_get_string(serv_name);
@@ -539,14 +545,14 @@ static void renderers_services(struct json_object *jobj)
 	my_items[nb_items] = NULL;
 	my_menu = new_menu(my_items);
 	set_menu_win(my_menu, win_body);
-	set_menu_sub(my_menu, derwin(win_body, win_body_lines-2, COLS-4, 3, 2));
+	set_menu_sub(my_menu, derwin(win_body, win_body_lines-3, COLS-4, 4, 2));
 	menu_opts_off(my_menu, O_SHOWDESC);
 	set_menu_mark(my_menu, "");
-	set_menu_format(my_menu, win_body_lines-2, 1);
+	set_menu_format(my_menu, win_body_lines-3, 1);
 	assert(post_menu(my_menu) == E_OK);
 
-	wrefresh(win_body);
 	repos_cursor();
+	wrefresh(win_body);
 }
 
 void __renderers_free_services(void)
@@ -582,6 +588,8 @@ void __renderers_services(struct json_object *jobj)
 
 	tech_dict = json_object_array_get_idx(tech_array, 1);
 	nb_pages = 0;
+	werase(win_body);
+	box(win_body, 0, 0);
 
 	if (tech_is_connected(tech_dict)) {
 		// propose modifications of service parameters

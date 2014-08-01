@@ -79,7 +79,8 @@ static struct json_object* format_agent_error(const char *error,
 static void format_agent_with_callback(struct json_object *jerror,
 		const char *msg, const char *cb)
 {
-	json_object_object_add(jerror, "msg", json_object_new_string(msg));
+	json_object_object_add(jerror, key_agent_error_message,
+			json_object_new_string(msg));
 	json_object_object_add(jerror, "callback", json_object_new_string(cb));
 }
 
@@ -100,7 +101,9 @@ static struct json_object* format_agent_msg(const char *msg,
 	json_object_object_add(res, key_dbus_json_agent_msg_key,
 		json_object_new_string(msg));
 	json_object_object_add(res, key_service, json_object_new_string(service));
-	json_object_object_add(res, "data", data);
+
+	if (data)
+		json_object_object_add(res, "data", data);
 
 	return res;
 }
@@ -198,12 +201,17 @@ static DBusMessage *agent_release(DBusConnection *connection,
 static DBusMessage *agent_cancel(DBusConnection *connection,
 		DBusMessage *message, void *user_data)
 {
+	struct json_object *res;
+
 	if (handle_message(message, &agent_request, agent_cancel) == false)
 		return NULL;
 
 	pending_message_remove(&agent_request);
 
 	pending_command_complete();
+
+	res = format_agent_msg("Agent canceled", "", NULL);
+	agent_callback(res, &agent_request);
 
 	return dbus_message_new_method_return(message);
 }
@@ -212,11 +220,14 @@ void request_browser_return(struct json_object *connected,
 		struct agent_data *request)
 {
 	if (json_object_get_boolean(connected) == TRUE)
-		dbus_send_reply(agent_connection, request->message,
-				DBUS_TYPE_INVALID);
+		request->reply = dbus_message_new_method_return(request->message);
+
 	else
-		dbus_send_error(agent_connection, request->message,
+		request->reply = dbus_message_new_error(request->message,
 				"net.connman.Agent.Error.Canceled", NULL);
+
+	if (request->reply)
+		dbus_connection_send(agent_connection, request->reply, NULL);
 
 	pending_message_remove(request);
 	pending_command_complete();
@@ -252,11 +263,13 @@ static DBusMessage *agent_request_browser(DBusConnection *connection,
 void report_error_return(struct json_object *retry, struct agent_data *request)
 {
 	if (json_object_get_boolean(retry) == TRUE)
-		dbus_send_error(agent_connection, request->message,
+		request->reply = dbus_message_new_error(request->message,
 				"net.connman.Agent.Error.Retry", NULL);
 	else
-		dbus_send_reply(agent_connection, request->message,
-				DBUS_TYPE_INVALID);
+		request->reply = dbus_message_new_method_return(request->message);
+
+	if (request->reply)
+		dbus_connection_send(agent_connection, request->reply, NULL);
 
 	pending_message_remove(request);
 	pending_command_complete();
