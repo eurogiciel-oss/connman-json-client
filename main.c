@@ -1,9 +1,6 @@
 /*
  *  connman-json-client
  *
- *  This file is meant for testing.
- *  A ncurses mode is implemented, just uncomment the code.
- *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -35,6 +32,7 @@
 #include "engine.h"
 #include "loop.h"
 #include "ncurses_utils.h"
+#include "string_utils.h"
 #include "renderers.h"
 #include "keys.h"
 #include "popup.h"
@@ -64,11 +62,11 @@ extern FORM *popup_form;
 extern FIELD **popup_fields;
 extern struct popup_actions **popup_btn_action;
 
-void print_services_for_tech();
-void connect_to_service();
+static void print_services_for_tech();
+static void connect_to_service();
 
-void print_home_page(void);
-void exec_refresh(void);
+static void print_home_page(void);
+static void exec_refresh(void);
 
 static bool allow_refresh = false;
 static char **agent_request_input_fields;
@@ -78,18 +76,20 @@ static struct {
 	void (*func_free)(); // Free elements for the current_context
 	void (*func_back)(); // What to do on 'Esc'
 	void (*func_refresh)(); // Refresh the current_context
+	void (*func_refresh_msg)(); // Refresh the footer message
 } context_actions[] = {
 	{ print_services_for_tech, __renderers_free_home_page, print_home_page,
-		print_home_page }, // CONTEXT_HOME
+		print_home_page, refresh_home_msg }, // CONTEXT_HOME
 	{ NULL, __renderers_free_service_config, print_home_page,
-		print_services_for_tech }, // CONTEXT_SERVICE_CONFIG
+		print_services_for_tech, refresh_service_config_msg }, // CONTEXT_SERVICE_CONFIG
 	{ connect_to_service, __renderers_free_services, print_home_page,
-		print_services_for_tech }, // CONTEXT_SERVICES
+		print_services_for_tech, refresh_services_msg }, // CONTEXT_SERVICES
 };
 
 void callback_ended(void)
 {
 	// This method is mandatory, and might be of use somehow
+	// e.g quite handy for debugging operations
 	return;
 }
 
@@ -139,7 +139,7 @@ static void popup_free(void)
 	exec_refresh();
 }
 
-void stop_loop(int signum)
+static void stop_loop(int signum)
 {
 	loop_quit();
 
@@ -151,13 +151,18 @@ void stop_loop(int signum)
 
 	engine_terminate();
 	context_free_userptr_data();
-	free(context.serv);
-	free(context.tech);
+
+	if (context.serv)
+		free(context.serv);
+
+	if (context.tech)
+		free(context.tech);
+
 	context.serv = NULL;
 	context.tech = NULL;
 }
 
-void exec_refresh()
+static void exec_refresh()
 {
 	ITEM *item;
 	FIELD *tmp_field;
@@ -236,12 +241,14 @@ void repos_cursor(void)
 	wrefresh(win_body);
 }
 
-void exec_action(struct userptr_data *data)
+static void exec_action(struct userptr_data *data)
 {
 	switch (context.current_context) {
 		case CONTEXT_SERVICES:
 			context.serv->dbus_name = strdup(data->dbus_name);
-			context.serv->pretty_name = strdup(data->pretty_name);
+
+			if (data->pretty_name)
+				context.serv->pretty_name = strdup(data->pretty_name);
 			break;
 
 		case CONTEXT_HOME:
@@ -257,7 +264,7 @@ void exec_action(struct userptr_data *data)
 	context_actions[context.current_context].func();
 }
 
-void exec_back(void)
+static void exec_back(void)
 {
 	context_free_userptr_data();
 	context_actions[context.current_context].func_free();
@@ -287,7 +294,7 @@ static void action_on_cmd_callback(struct json_object *jobj)
 		print_info_in_footer(true, "Unknown command called");
 }
 
-void action_on_signal(struct json_object *jobj)
+static void action_on_signal(struct json_object *jobj)
 {
 	struct json_object *sig_path, *sig_data;
 	json_bool tmp_bool;
@@ -532,7 +539,7 @@ static void action_on_agent_error(struct json_object *jobj)
 	popup_refresh();
 }
 
-void main_callback(int status, struct json_object *jobj)
+static void main_callback(int status, struct json_object *jobj)
 {
 	struct json_object *cmd_tmp, *signal, *agent_msg, *agent_error,
 			*return_user_data, *error;
@@ -573,26 +580,24 @@ void main_callback(int status, struct json_object *jobj)
 		print_info_in_footer(true, "Unidentified call back: "
 				"status: %d, jobj: %s\n", status,
 				json_object_get_string(jobj));
-
-	/* release the memory of the json object now */
+	
+	context_actions[context.current_context].func_refresh_msg();
+	// Release the memory of the json object now
 	json_object_put(jobj);
 }
 
-void print_home_page(void)
+static void print_home_page(void)
 {
 	struct json_object *cmd;
 
 	werase(win_footer);
-	print_info_in_footer(false, "'d' to disconnect, 'Return' for"
-			" details, 'F5' to force refresh");
-	print_info_in_footer2(false, "^C to quit");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_home_page));
 	engine_query(cmd);
 }
 
-void print_services_for_tech()
+static void print_services_for_tech()
 {
 	struct json_object *cmd, *tmp;
 
@@ -604,16 +609,13 @@ void print_services_for_tech()
 	json_object_object_add(tmp, key_technology,
 			json_object_new_string(context.tech->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
-	print_info_in_footer(false, "'F5' to refresh network list, "
-			"'F6' to force a scan");
-	print_info_in_footer2(false, "'Esc' to get back");
 
 	if (engine_query(cmd) == -EINVAL)
 		print_info_in_footer(true, "@print_services_for_tech:"
 				"invalid argument/value");
 }
 
-void connect_to_service()
+static void connect_to_service()
 {
 	struct json_object *cmd, *tmp;
 
@@ -636,7 +638,7 @@ void connect_to_service()
 	wrefresh(win_body);
 }
 
-void disconnect_of_service(struct userptr_data *data)
+static void disconnect_of_service(struct userptr_data *data)
 {
 	struct json_object *cmd, *tmp;
 
@@ -654,7 +656,7 @@ void disconnect_of_service(struct userptr_data *data)
 				" invalid argument/value");
 }
 
-void scan_tech(const char *tech_dbus_name)
+static void scan_tech(const char *tech_dbus_name)
 {
 	struct json_object *cmd, *tmp;
 
@@ -668,7 +670,135 @@ void scan_tech(const char *tech_dbus_name)
 	engine_query(cmd);
 }
 
-void exec_action_context_home(int ch)
+/*
+ * Return the position of the previous label suffixed with ".Configuration".
+ */
+static int search_previous_config_label(int pos)
+{
+	FIELD *f;
+	char *key_str, *tmp_str;
+	bool field_is_editable;
+
+	for (; pos > 0 && field[pos] != NULL; pos--) {
+		f = field[pos];
+		field_is_editable = (unsigned)field_opts(f) & O_EDIT;
+
+		if (field_is_editable)
+			continue;
+
+		key_str = field_buffer(f, 0);
+		tmp_str = trim_whitespaces(key_str);
+
+		if (string_ends_with_configuration(tmp_str))
+			break;
+	}
+		
+	return pos;
+}
+
+static void build_json_config(struct json_object *jobj, int min, int max)
+{
+	int i, pos_label;
+	const char *pos_buffer, *buffer;
+	char *pos_buffer_clean, *buffer_clean;
+	json_bool autoconnect;
+	struct json_object *tmp;
+	bool buffer_is_array;
+
+	for (i = max; i > min; i--) {
+		if (!((unsigned)field_opts(field[i]) & O_EDIT))
+			continue;
+
+		pos_label = i - 1;
+		assert(pos_label >= 0 && pos_label >= min);
+
+		buffer = field_buffer(field[i], 0);
+		pos_buffer = field_buffer(field[pos_label], 0);
+		assert(buffer != NULL && pos_buffer != NULL);
+		buffer_clean = trim_whitespaces((char *)buffer);
+		pos_buffer_clean = trim_whitespaces((char *)pos_buffer);
+
+		buffer_is_array = strcmp("Nameservers.Configuration",
+				pos_buffer_clean) == 0;
+		buffer_is_array |= strcmp("Timeservers.Configuration",
+				pos_buffer_clean) == 0;
+		buffer_is_array |= strcmp("Domains.Configuration",
+				pos_buffer_clean) == 0;
+
+		if (strcmp("AutoConnect", pos_buffer_clean) == 0) {
+			autoconnect = strcmp("true", buffer_clean);
+			json_object_object_add(jobj, pos_buffer_clean,
+					json_object_new_boolean(autoconnect == 0 ? TRUE : FALSE));
+
+		} else if (buffer_is_array) {
+			tmp = json_tokener_parse(buffer_clean);
+
+			if (tmp && json_object_get_type(tmp) != json_type_array) {
+				json_object_put(tmp);
+				tmp = json_object_new_array();
+
+			} else if (!tmp)
+				tmp = json_object_new_array();
+
+			if (json_object_array_length(tmp) == 0)
+				json_object_array_add(tmp, json_object_new_string(""));
+
+			json_object_object_add(jobj, pos_buffer_clean, tmp);
+
+		} else
+			json_object_object_add(jobj, pos_buffer_clean,
+					json_object_new_string(buffer_clean));
+	}
+}
+
+static void modify_service_config()
+{
+	int i, pos_label;
+	struct json_object *cmd = json_object_new_object();
+	struct json_object *cmd_data = json_object_new_object();
+	struct json_object *options = json_object_new_object();
+	struct json_object *tmp;
+	char *key_str;
+
+	for (i = 0; field[i]; i++) {
+		if (!((unsigned)field_opts(field[i]) & O_EDIT))
+			continue;
+
+		pos_label = search_previous_config_label(i);
+		assert(pos_label >= 0);
+
+		if (pos_label == 0) {
+			// 11 = strlen("AutoConnect"), the rest of the
+			// buffer is filled with spaces
+			if (strncmp("AutoConnect", field_buffer(field[i-1], 0), 11) != 0)
+				continue;
+
+			build_json_config(options, i-1, i);
+
+		} else if (pos_label == i-1) {
+			build_json_config(options, pos_label, i);
+
+		} else { // object representation
+			tmp = json_object_new_object();
+			build_json_config(tmp, pos_label, i);
+			key_str = field_buffer(field[pos_label], 0);
+			json_object_object_add(options, trim_whitespaces(key_str), tmp);
+		}
+	}
+
+	json_object_object_add(cmd_data, key_service,
+			json_object_new_string(context.serv->dbus_name));
+	json_object_object_add(cmd_data, "options", options);
+	json_object_object_add(cmd, key_command_data, cmd_data);
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_config_service));
+
+	if (engine_query(cmd) == -EINVAL)
+		print_info_in_footer(true, "@modify_service_config: "
+				"invalid argument/value");
+}
+
+static void exec_action_context_home(int ch)
 {
 	ITEM *item;
 
@@ -684,8 +814,7 @@ void exec_action_context_home(int ch)
 		case 100: // 'd'
 			item = current_item(my_menu);
 			disconnect_of_service(item_userptr(item));
-			print_info_in_footer(false,
-					"Disconnecting...");
+			print_info_in_footer(false, "Disconnecting...");
 			break;
 
 		case KEY_ENTER:
@@ -696,10 +825,11 @@ void exec_action_context_home(int ch)
 	}
 }
 
-void exec_action_context_service_config(int ch)
+static void exec_action_context_service_config(int ch)
 {
-	FIELD *field;
 	int cur_page = form_page(my_form);
+	struct userptr_data *data;
+
 	switch (ch) {
 		case KEY_DOWN:
 			form_driver(my_form, REQ_NEXT_FIELD);
@@ -723,13 +853,6 @@ void exec_action_context_service_config(int ch)
 			__renderers_services_config_paging();
 			break;
 
-		case KEY_ENTER:
-		case 10:
-			field = current_field(my_form);
-			print_info_in_footer(false,
-					field_buffer(field, 0));
-			break;
-
 		// Delete the char before cursor
 		case KEY_BACKSPACE:
 		case 127:
@@ -749,6 +872,19 @@ void exec_action_context_service_config(int ch)
 			form_driver(my_form, REQ_NEXT_CHAR);
 			break;
 
+		case KEY_F(7):
+			// The dbus name of the service is stored in the first
+			// item (it's a non active one). The active items have a
+			// tagging system to keep the pointer's position on the
+			// same field. We can't use exec_action for this because
+			// we need to extract the values in fields *before*
+			// freeing them (exec_action does the opposite).
+			data = field_userptr(field[0]);
+			context.serv->dbus_name = strdup(data->dbus_name);
+			modify_service_config();
+			print_info_in_footer(false, "Configuring...");
+			break;
+
 		default:
 			if ((unsigned) field_opts(current_field(my_form)) & O_EDIT)
 				form_driver(my_form, ch);
@@ -756,7 +892,7 @@ void exec_action_context_service_config(int ch)
 	}
 }
 
-void exec_action_context_services(int ch)
+static void exec_action_context_services(int ch)
 {
 	ITEM *item;
 
@@ -886,9 +1022,7 @@ int main(void)
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_home_page));
 	engine_query(cmd);
-	print_info_in_footer(false, "'d' to disconnect, 'Return' for"
-			" details, 'F5' to force refresh");
-	print_info_in_footer2(false, "^C to quit");
+	refresh_home_msg();
 
 	loop_run(true);
 	loop_terminate();

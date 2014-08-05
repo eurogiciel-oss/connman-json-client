@@ -64,6 +64,8 @@ void __renderers_free_service_config(void);
 
 void __renderers_free_services(void);
 
+bool string_ends_with_configuration(const char *str);
+
 #ifdef __cplusplus
 }
 

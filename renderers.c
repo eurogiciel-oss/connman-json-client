@@ -28,6 +28,7 @@
 
 #include "ncurses_utils.h"
 #include "json_utils.h"
+#include "string_utils.h"
 #include "keys.h"
 
 #include "renderers.h"
@@ -49,6 +50,10 @@ int nb_pages;
 struct context_info context;
 
 char *true_false_enum[] = { "true", "false", NULL };
+char *ipv4_method_enum[] = { "dhcp", "manual", "off", NULL };
+char *ipv6_method_enum[] = { "auto", "manual", "off", "6to4", NULL };
+char *ipv6_privacy_enum[] = { "auto", "disabled", "enabled", "prefered", NULL };
+char *proxy_method_enum[] = { "direct", "manual", "auto", NULL };
 char str_field[2];
 
 /*
@@ -140,7 +145,7 @@ static void renderers_technologies(struct json_object *jobj)
 				desc_base_sub, k_powered, k_connected);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 		tech_short_name =
-			__extract_dbus_short_name(json_object_get_string(dbus_tech_name));
+			extract_dbus_short_name(json_object_get_string(dbus_tech_name));
 		my_items[i] = new_item(tech_short_name, desc);
 
 		data = malloc(sizeof(struct userptr_data));
@@ -195,6 +200,9 @@ void __renderers_home_page(struct json_object *jobj)
 	json_object_object_get_ex(jobj, "technologies", &tech);
 	json_object_object_get_ex(jobj, "state", &state);
 
+	if (tech == NULL || state == NULL)
+		return;
+
 	werase(win_body);
 	box(win_body, 0, 0);
 	mvwprintw(win_body, 1, 2, "Technologies:");
@@ -209,6 +217,9 @@ void __renderers_free_home_page(void)
 {
 	int i;
 	struct userptr_data *data;
+
+	if (!my_menu)
+		return;
 
 	unpost_menu(my_menu);
 
@@ -252,9 +263,9 @@ static int compute_nb_elems_in_service(struct json_object *jobj)
 		if (json_object_get_type(val) == json_type_object) {
 			nb_fields++; // count 1 for the label of the subsection
 			tmp_len_obj = compute_nb_elems_in_service(val);
-		} else {
+
+		} else
 			nb_fields += 2; // count 2 for a label and a field
-		}
 
 		if ((tmp_len = strlen(key)) > longest_key_len)
 			longest_key_len = tmp_len;
@@ -295,9 +306,9 @@ static FIELD* render_label(int longest_key_len, const char *label_str)
 }
 
 /*
- * Test if a given string ends with ".Configuration"
+ * Test if a given string ends with ".Configuration".
  */
-static bool string_ends_with_configuration(const char *str)
+bool string_ends_with_configuration(const char *str)
 {
 	char *last_token;
 
@@ -309,10 +320,43 @@ static bool string_ends_with_configuration(const char *str)
 	return (last_token && strcmp(last_token, "Configuration") == 0);
 }
 
-static void render_fields_from_jobj(int longest_key_len, int *pos,
-		struct json_object *jobj, bool is_modifiable)
+static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str,
+		const char *key)
 {
-	bool is_autoconnect = false;
+	if (is_autoconnect) {
+		set_field_type(field[pos], TYPE_ENUM, true_false_enum, 0, 1);
+		return;
+	}
+
+	if (strcmp(key, "Privacy") == 0) {
+		set_field_type(field[pos], TYPE_ENUM, ipv6_privacy_enum, 0, 1);
+		return;
+	}
+
+	if (strcmp(key, "Method") != 0 || obj_str == NULL)
+		return;
+
+	if (strcmp(obj_str, "IPv4.Configuration") == 0) {
+		set_field_type(field[pos], TYPE_ENUM, ipv4_method_enum, 0, 1);
+		return;
+	}
+
+	if (strcmp(obj_str, "IPv6.Configuration") == 0) {
+		set_field_type(field[pos], TYPE_ENUM, ipv6_method_enum, 0, 1);
+		return;
+	}
+
+	if (strcmp(obj_str, "Proxy.Configuration") == 0) {
+		set_field_type(field[pos], TYPE_ENUM, proxy_method_enum, 0, 1);
+		return;
+	}
+}
+
+static void render_fields_from_jobj(int longest_key_len, int *pos,
+		struct json_object *jobj, bool is_obj_modifiable,
+		const char *obj_str)
+{
+	bool is_autoconnect = false, is_modifiable = false;
 	struct userptr_data *data;
 
 	json_object_object_foreach(jobj, key, val) {
@@ -321,12 +365,13 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 		(*pos)++;
 
 		is_modifiable = string_ends_with_configuration(key);
+		is_modifiable |= is_obj_modifiable;
 
 		if (json_object_get_type(val) == json_type_object) {
 			move_field(field[(*pos)-1], ++cur_y, cur_x);
 			cur_y++;
 			render_fields_from_jobj(longest_key_len, pos, val,
-					is_modifiable);
+					is_modifiable, key);
 			is_modifiable = false;
 		} else {
 			// insert the page delimiter
@@ -343,9 +388,13 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 
 			if (is_modifiable || is_autoconnect) {
 				field_opts_on(field[*pos], O_EDIT);
+				field_opts_off(field[*pos], O_BLANK);
 				set_field_back(field[*pos], A_UNDERLINE);
 			} else
 				field_opts_off(field[*pos], O_EDIT);
+
+			// Specific operations on fields
+			config_fields_type(*pos, is_autoconnect, obj_str, key);
 
 			field_opts_on(field[*pos], O_NULLOK);
 			data = malloc(sizeof(struct userptr_data));
@@ -365,11 +414,15 @@ static void renderers_service_config(struct json_object *tech_array,
 {
 	struct json_object *serv_dict;
 	int longest_key_len, i;
+	struct userptr_data *data;
+	const char *serv_dbus_name;
 
 	nb_fields = 0;
 	cur_y = 1;
 	cur_x = 1;
 	serv_dict = json_object_array_get_idx(serv_array, 1);
+	serv_dbus_name = json_object_get_string(
+			json_object_array_get_idx(serv_array, 0));
 
 	// We compute how many fields we will need
 	longest_key_len = compute_nb_elems_in_service(serv_dict);
@@ -379,8 +432,12 @@ static void renderers_service_config(struct json_object *tech_array,
 	i = 0;
 
 	str_field[0] = '\0';
-	render_fields_from_jobj(longest_key_len, &i, serv_dict, false);
+	render_fields_from_jobj(longest_key_len, &i, serv_dict, false, NULL);
 
+	data = malloc(sizeof(struct userptr_data));
+	data->dbus_name = strdup(serv_dbus_name);
+	data->pretty_name = NULL;
+	set_field_userptr(field[0], data);
 	field[nb_fields] = NULL;
 
 	my_form = new_form(field);
@@ -398,6 +455,9 @@ static void renderers_service_config(struct json_object *tech_array,
 
 void __renderers_services_config_paging(void)
 {
+	if (!my_form)
+		return;
+
 	if (!nb_pages)
 		mvwprintw(win_body, 1, 2, "Service configuration :");
 	else
@@ -505,6 +565,7 @@ static void renderers_services(struct json_object *jobj)
 	char *dbus_short_name;
 	struct json_object *array, *dbus_long_name;
 
+	my_menu = NULL;
 	nb_items = json_object_array_length(jobj);
 
 	if (nb_items == 0) {
@@ -517,7 +578,7 @@ static void renderers_services(struct json_object *jobj)
 	array = json_object_array_get_idx(jobj, 0);
 	dbus_long_name = json_object_array_get_idx(array, 0);
 
-	dbus_short_name = __extract_dbus_short_name(json_object_get_string(dbus_long_name));
+	dbus_short_name = extract_dbus_short_name(json_object_get_string(dbus_long_name));
 	my_items = malloc(sizeof(ITEM *) * (nb_items+1));
 	assert(my_items != NULL);
 
@@ -550,7 +611,7 @@ void __renderers_free_services(void)
 	int i;
 	struct userptr_data *data;
 
-	if (nb_items == 0)
+	if (my_menu == NULL)
 		return;
 
 	unpost_menu(my_menu);
@@ -575,12 +636,20 @@ void __renderers_services(struct json_object *jobj)
 	json_object_object_get_ex(jobj, key_technology, &tech_array);
 	json_object_object_get_ex(jobj, key_services, &serv_array);
 
+	if (tech_array == NULL || serv_array == NULL)
+		return;
+
 	tech_dict = json_object_array_get_idx(tech_array, 1);
 	nb_pages = 0;
 	werase(win_body);
 	box(win_body, 0, 0);
 
 	if (tech_is_connected(tech_dict)) {
+		if (!serv_array || json_object_array_length(serv_array) == 0) {
+			my_menu = NULL;
+			return;
+		}
+
 		// propose modifications of service parameters
 		renderers_service_config(tech_array,
 				json_object_array_get_idx(serv_array, 0));
@@ -597,6 +666,9 @@ void __renderers_free_service_config(void)
 {
 	int i;
 	struct userptr_data *tmp;
+
+	if (my_menu == NULL)
+		return;
 
 	unpost_form(my_form);
 

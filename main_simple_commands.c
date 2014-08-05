@@ -2,7 +2,6 @@
  *  connman-json-client
  *
  *  This file is meant for testing.
- *  A ncurses mode is implemented, just uncomment the code.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

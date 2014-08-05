@@ -1,9 +1,6 @@
 /*
  *  connman-json-client
  *
- *  This file is meant for testing.
- *  A ncurses mode is implemented, just uncomment the code.
- *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -32,7 +29,14 @@ extern "C" {
 #endif
 
 void print_info_in_footer(bool is_error, const char* msg, ...);
+
 void print_info_in_footer2(bool is_error, const char* msg, ...);
+
+void refresh_home_msg(void);
+
+void refresh_services_msg(void);
+
+void refresh_service_config_msg(void);
 
 #ifdef __cplusplus
 }

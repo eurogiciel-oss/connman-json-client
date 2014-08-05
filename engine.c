@@ -93,6 +93,47 @@ static void react_to_sig_manager(struct json_object *interface,
 static struct agent_data *agent_data_cache;
 
 /*
+ * The dbus service return something wierd for the Proxy.Configuration field :
+ * an array. Whereas the documentation specifies that Proxy.Configuration is an
+ * object (at the image of Proxy). This function replaces Proxy.Configuration by
+ * Proxy.
+ */
+static void change_weird_proxy_conf(struct json_object *serv_dict)
+{
+	struct json_object *tmp;
+
+	if (json_object_object_get_ex(serv_dict, "Proxy.Configuration", &tmp) == FALSE)
+		return;
+
+	if (tmp && json_object_get_type(tmp) != json_type_array)
+		return;
+
+	json_object_object_get_ex(serv_dict, "Proxy", &tmp);
+
+	if (!tmp)
+		return;
+
+	json_object_object_del(serv_dict, "Proxy.Configuration");
+	json_object_object_add(serv_dict, "Proxy.Configuration",
+			json_object_get(tmp));
+}
+
+/*
+ * Apply the function above to a list of services (structured like the global
+ * var).
+ */
+static void change_weird_proxy_conf_array(struct json_object *serv_array)
+{
+	struct json_object *sub_array;
+	int i;
+
+	for (i = 0; i < json_object_array_length(serv_array); i++) {
+		sub_array = json_object_array_get_idx(serv_array, i);
+		change_weird_proxy_conf(json_object_array_get_idx(sub_array, 1));
+	}
+}
+
+/*
  * Forward callbacks from commands_callback (If the engine is not in state of
  * initialization)
  */
@@ -108,6 +149,7 @@ static void engine_commands_cb(struct json_object *data, json_bool is_error)
 			break;
 
 		case INIT_SERVICES:
+			change_weird_proxy_conf_array(data);
 			services = data;
 			break;
 
@@ -190,6 +232,9 @@ static struct json_object* search_technology_or_service(
 	bool found = false;
 	struct json_object *sub_array, *name;
 	const char *name_str;
+
+	if (!dbus_name)
+		return NULL;
 
 	len = json_object_array_length(ressource);
 
@@ -381,11 +426,11 @@ static int get_services_from_tech(struct json_object *jobj)
 
 	json_object_object_get_ex(jobj, key_technology, &tmp);
 	tech_dbus_name = json_object_get_string(tmp);
+	res_tech = get_technology(tech_dbus_name);
 
-	if (tech_dbus_name == NULL || !has_technology(tech_dbus_name))
+	if (res_tech == NULL)
 		return -EINVAL;
 
-	res_tech = get_technology(tech_dbus_name);
 	json_object_get(res_tech);
 	tech_dict = json_object_array_get_idx(res_tech, 1);
 	json_object_object_get_ex(tech_dict, "Type", &jtech_type);
@@ -433,8 +478,9 @@ static int disconnect_technology(struct json_object *jobj)
 
 	json_object_object_get_ex(jobj, key_technology, &tmp);
 	tech_dbus_name = json_object_get_string(tmp);
+	tmp = get_technology(tech_dbus_name);
 
-	if (tech_dbus_name == NULL || !has_technology(tech_dbus_name))
+	if (tmp == NULL)
 		return -EINVAL;
 
 	tech_dict = json_object_array_get_idx(tmp, 1);
@@ -495,7 +541,7 @@ static int config_service(struct json_object *jobj)
 	
 	json_object_object_get_ex(jobj, key_options, &opt);
 
-	return __cmd_config_service(serv_dbus_name, jobj);
+	return __cmd_config_service(serv_dbus_name, opt);
 }
 
 /*
@@ -590,7 +636,7 @@ static bool command_data_is_clean(struct json_object *jobj, int cmd_pos)
 	else
 		jcmd_data = cmd_table[cmd_pos].trusted.trusted_jobj;
 
-	assert(jcmd_data);
+	assert(jcmd_data != NULL);
 
 	res = __json_type_dispatch(jobj, jcmd_data);
 
@@ -659,6 +705,7 @@ static void react_to_sig_service(struct json_object *interface,
 		return;
 
 	key = json_object_get_string(json_object_array_get_idx(data, 0));
+	change_weird_proxy_conf(json_object_array_get_idx(data, 1));
 	val = json_object_array_get_idx(data, 1);
 	serv_dict = json_object_array_get_idx(serv, 1);
 
@@ -727,6 +774,7 @@ static void replace_service_in_services(const char *serv_name,
 	if (!found) {
 		tmp = json_object_new_array();
 		json_object_array_add(tmp, json_object_new_string(serv_name));
+		change_weird_proxy_conf(serv_dict);
 		json_object_array_add(tmp, json_object_get(serv_dict));
 		json_object_array_add(services, tmp);
 	}
@@ -933,6 +981,9 @@ void engine_terminate(void)
 	json_object_put(technologies);
 	json_object_put(services);
 	json_object_put(state);
+	technologies = NULL;
+	services = NULL;
+	state = NULL;
 	agent_unregister(agent_dbus_conn, NULL);
 	free_trusted_json();
 }

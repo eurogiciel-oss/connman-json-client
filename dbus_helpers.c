@@ -116,7 +116,7 @@ static int append_variant(DBusMessageIter *iter, const char *property,
 	dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &property);
 	dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT, type_str,
 			&variant);
-	dbus_message_iter_append_basic(&variant, type, &value);
+	dbus_message_iter_append_basic(&variant, type, value);
 	dbus_message_iter_close_container(iter, &variant);
 
 	return 0;

@@ -17,22 +17,54 @@
  *
  */
 
-#ifndef __CONNMAN_JSON_UTILS_H
-#define __CONNMAN_JSON_UTILS_H
-
-#ifdef __cplusplus
-extern "C" {
+#ifdef HAVE_CONFIG_H
+#include <config.h>
 #endif
 
-bool __match_strings(const char *str, const char *trusted);
+#include <string.h>
+#include <ctype.h>
 
-bool __json_type_dispatch(struct json_object *jobj,
-		struct json_object *jtrusted);
+#include "string_utils.h"
 
-const char* __json_get_command_str(struct json_object *jobj);
+/*
+ * This is useful because ncurses fill fields blanks with spaces.
+ */
+char* trim_whitespaces(char *str)
+{
+	char *end;
 
-#ifdef __cplusplus
+	// trim leading space
+	while(isspace(*str))
+		str++;
+
+	if(*str == 0) // all spaces?
+		return str;
+
+	// trim trailing space
+	end = str + strnlen(str, 128) - 1;
+
+	while(end > str && isspace(*end))
+		end--;
+
+	// write new null terminator
+	*(end+1) = '\0';
+
+	return str;
 }
-#endif
 
-#endif
+/*
+ * This get the last token ('/') of str.
+ * Don't forget to free the return value.
+ */
+char* extract_dbus_short_name(const char *str)
+{
+	char *last_token = strrchr(str, '/'), *res;
+
+	if (!last_token)
+		return NULL;
+
+	last_token++;
+	res = strdup(last_token);
+
+	return res;
+}

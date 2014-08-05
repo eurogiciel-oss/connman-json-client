@@ -1,9 +1,6 @@
 /*
  *  connman-json-client
  *
- *  This file is meant for testing.
- *  A ncurses mode is implemented, just uncomment the code.
- *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -26,6 +23,8 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include <ctype.h>
+#include <string.h>
 #include <ncurses/form.h>
 #include <ncurses/menu.h>
 
@@ -58,4 +57,25 @@ void print_info_in_footer2(bool is_error, const char* msg, ...)
 	va_start(args, msg);
 	print_in_footer(is_error, 1, msg, args);
 	va_end(args);
+}
+
+void refresh_home_msg(void)
+{
+	print_info_in_footer(false, "'d' to disconnect, 'Return' for"
+			" details, 'F5' to force refresh");
+	print_info_in_footer2(false, "^C to quit");
+}
+
+void refresh_services_msg(void)
+{
+	print_info_in_footer(false, "'F5' to refresh network list, "
+			"'F6' to force a scan");
+	print_info_in_footer2(false, "'Esc' to get back");
+}
+
+void refresh_service_config_msg(void)
+{
+	print_info_in_footer(false, "'F5' to force refresh, "
+			"'F7' to submit settings");
+	print_info_in_footer2(false, "'Esc' to get back");
 }

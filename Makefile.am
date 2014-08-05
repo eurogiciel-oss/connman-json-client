@@ -15,6 +15,7 @@ connman_json_SOURCES = dbus_helpers.h dbus_helpers.c \
 				  keys.h keys.c \
 				  popup.h popup.c \
 				  json_regex.h json_regex.c \
+				  string_utils.h string_utils.c \
 				  main.c
 
 

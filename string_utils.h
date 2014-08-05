@@ -17,22 +17,20 @@
  *
  */
 
-#ifndef __CONNMAN_JSON_UTILS_H
-#define __CONNMAN_JSON_UTILS_H
+#ifndef __CONNMAN_STRING_UTILS_H
+#define __CONNMAN_STRING_UTILS_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-bool __match_strings(const char *str, const char *trusted);
+char* trim_whitespaces(char *str);
 
-bool __json_type_dispatch(struct json_object *jobj,
-		struct json_object *jtrusted);
-
-const char* __json_get_command_str(struct json_object *jobj);
+char* extract_dbus_short_name(const char *str);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+

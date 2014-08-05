@@ -34,6 +34,7 @@
 #include "dbus_json.h"
 #include "engine.h"
 #include "keys.h"
+#include "string_utils.h"
 
 #include "commands.h"
 
@@ -453,13 +454,13 @@ static void config_append_proxy(DBusMessageIter *iter,
 	   "Timeservers.Configuration: [ "timeserver1", "timeserver2" ]
    }
  */
-int __cmd_config_service(const char *service_name, struct json_object *options)
+int __cmd_config_service(const char *service_dbus_name, struct json_object *options)
 {
 	int res = 0;
-	char *path, *simple_service_conf, *dyn_service_name;
+	char *simple_service_conf, *dyn_service_name;
 	dbus_bool_t dbus_bool;
 
-	if (!service_name || check_dbus_name(service_name) == false) {
+	if (!service_dbus_name) {
 		call_return_list(NULL, "Wrong service name",
 				"Service set properties.");
 		return -EINVAL;
@@ -473,31 +474,25 @@ int __cmd_config_service(const char *service_name, struct json_object *options)
 
 	json_object_object_foreach(options, key, val) {
 		simple_service_conf = NULL;
-		path = malloc(JSON_COMMANDS_STRING_SIZE_MEDIUM + 1);
-		snprintf(path, JSON_COMMANDS_STRING_SIZE_MEDIUM,
-				"/net/connman/service/%s", service_name);
-		path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
-
-		dyn_service_name = strndup(service_name,
-				JSON_COMMANDS_STRING_SIZE_MEDIUM);
+		dyn_service_name = extract_dbus_short_name(service_dbus_name);
 
 		if (strcmp("IPv4.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
-					path, "net.connman.Service",
+					service_dbus_name, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"IPv4.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv4, val);
 
 		} else if (strcmp("IPv6.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
-					path, "net.connman.Service",
+					service_dbus_name, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"IPv6.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv6, val);
 
 		} else if (strcmp("Proxy.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
-					path, "net.connman.Service",
+					service_dbus_name, "net.connman.Service",
 					call_return_list_free, dyn_service_name,
 					"Proxy.Configuration", DBUS_TYPE_STRING,
 					config_append_proxy, val);
@@ -509,7 +504,7 @@ int __cmd_config_service(const char *service_name, struct json_object *options)
 			else
 				dbus_bool = FALSE;
 
-			res = dbus_set_property(connection, path,
+			res = dbus_set_property(connection, service_dbus_name,
 					"net.connman.Service", call_return_list_free,
 					dyn_service_name, "AutoConnect",
 					DBUS_TYPE_BOOLEAN, &dbus_bool);
@@ -530,14 +525,13 @@ int __cmd_config_service(const char *service_name, struct json_object *options)
 
 		if (simple_service_conf != NULL) {
 			res = dbus_set_property_array(connection,
-					path, "net.connman.Service",
+					service_dbus_name, "net.connman.Service",
 					call_return_list_free,
 					dyn_service_name,
 					simple_service_conf, DBUS_TYPE_STRING,
 					config_append_json_array_of_strings, val);
 		}
 
-		free(path);
 		simple_service_conf = NULL;
 
 		if (res < 0 && res != -EINPROGRESS)
