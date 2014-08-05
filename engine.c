@@ -98,7 +98,7 @@ static struct agent_data *agent_data_cache;
  * object (at the image of Proxy). This function replaces Proxy.Configuration by
  * Proxy.
  */
-static void change_weird_proxy_conf(struct json_object *serv_dict)
+static void better_proxy_conf(struct json_object *serv_dict)
 {
 	struct json_object *tmp;
 
@@ -119,17 +119,57 @@ static void change_weird_proxy_conf(struct json_object *serv_dict)
 }
 
 /*
- * Apply the function above to a list of services (structured like the global
+ * IPv4.Configuration don't contain every single fields like IPv4 does, this
+ * create problem if you want to manually configure your network.
+ */
+static void better_ipv4_conf(struct json_object *serv_dict)
+{
+	struct json_object *tmp;
+	
+	json_object_object_get_ex(serv_dict, "IPv4", &tmp);
+
+	if (!tmp)
+		return;
+
+	json_object_object_del(serv_dict, "IPv4.Configuration");
+	json_object_object_add(serv_dict, "IPv4.Configuration",
+			json_object_get(tmp));
+}
+
+/*
+ * IPv6.Configuration don't contain every single fields like IPv6 does, this
+ * create problem if you want to manually configure your network.
+ */
+static void better_ipv6_conf(struct json_object *serv_dict)
+{
+	struct json_object *tmp;
+	
+	json_object_object_get_ex(serv_dict, "IPv6", &tmp);
+
+	if (!tmp)
+		return;
+
+	json_object_object_del(serv_dict, "IPv6.Configuration");
+	json_object_object_add(serv_dict, "IPv6.Configuration",
+			json_object_get(tmp));
+}
+
+/*
+ * Apply the functions above to a list of services (structured like the global
  * var).
  */
-static void change_weird_proxy_conf_array(struct json_object *serv_array)
+static void change_weird_conf_array(struct json_object *serv_array)
 {
-	struct json_object *sub_array;
+	struct json_object *sub_array, *serv_dict;
 	int i;
 
 	for (i = 0; i < json_object_array_length(serv_array); i++) {
 		sub_array = json_object_array_get_idx(serv_array, i);
-		change_weird_proxy_conf(json_object_array_get_idx(sub_array, 1));
+		assert(sub_array != NULL);
+		serv_dict = json_object_array_get_idx(sub_array, 1);
+		better_proxy_conf(serv_dict);
+		better_ipv4_conf(serv_dict);
+		better_ipv6_conf(serv_dict);
 	}
 }
 
@@ -149,7 +189,7 @@ static void engine_commands_cb(struct json_object *data, json_bool is_error)
 			break;
 
 		case INIT_SERVICES:
-			change_weird_proxy_conf_array(data);
+			change_weird_conf_array(data);
 			services = data;
 			break;
 
@@ -705,7 +745,7 @@ static void react_to_sig_service(struct json_object *interface,
 		return;
 
 	key = json_object_get_string(json_object_array_get_idx(data, 0));
-	change_weird_proxy_conf(json_object_array_get_idx(data, 1));
+	change_weird_conf_array(json_object_array_get_idx(data, 1));
 	val = json_object_array_get_idx(data, 1);
 	serv_dict = json_object_array_get_idx(serv, 1);
 
@@ -774,7 +814,7 @@ static void replace_service_in_services(const char *serv_name,
 	if (!found) {
 		tmp = json_object_new_array();
 		json_object_array_add(tmp, json_object_new_string(serv_name));
-		change_weird_proxy_conf(serv_dict);
+		change_weird_conf_array(serv_dict);
 		json_object_array_add(tmp, json_object_get(serv_dict));
 		json_object_array_add(services, tmp);
 	}
