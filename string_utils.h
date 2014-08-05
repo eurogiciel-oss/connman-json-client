@@ -20,6 +20,8 @@
 #ifndef __CONNMAN_STRING_UTILS_H
 #define __CONNMAN_STRING_UTILS_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,6 +29,8 @@ extern "C" {
 char* trim_whitespaces(char *str);
 
 char* extract_dbus_short_name(const char *str);
+
+bool check_dbus_name(const char *name);
 
 #ifdef __cplusplus
 }

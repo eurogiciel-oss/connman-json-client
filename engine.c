@@ -745,7 +745,6 @@ static void react_to_sig_service(struct json_object *interface,
 		return;
 
 	key = json_object_get_string(json_object_array_get_idx(data, 0));
-	change_weird_conf_array(json_object_array_get_idx(data, 1));
 	val = json_object_array_get_idx(data, 1);
 	serv_dict = json_object_array_get_idx(serv, 1);
 
@@ -753,6 +752,8 @@ static void react_to_sig_service(struct json_object *interface,
 		json_object_object_del(serv_dict, key);
 		json_object_object_add(serv_dict, key, val);
 	}
+
+	change_weird_conf_array(services);
 }
 
 /*
@@ -814,10 +815,11 @@ static void replace_service_in_services(const char *serv_name,
 	if (!found) {
 		tmp = json_object_new_array();
 		json_object_array_add(tmp, json_object_new_string(serv_name));
-		change_weird_conf_array(serv_dict);
 		json_object_array_add(tmp, json_object_get(serv_dict));
 		json_object_array_add(services, tmp);
 	}
+
+	change_weird_conf_array(services);
 }
 
 /*

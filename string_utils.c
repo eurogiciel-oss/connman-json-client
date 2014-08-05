@@ -68,3 +68,24 @@ char* extract_dbus_short_name(const char *str)
 
 	return res;
 }
+
+/*
+ * Valid dbus chars should be [A-Z][a-z][0-9]_
+ * and should not start with number.
+ */
+bool check_dbus_name(const char *name)
+{
+	unsigned int i;
+
+	if (!name || name[0] == '\0')
+		return false;
+
+	for (i = 0; name[i] != '\0'; i++)
+		if (!((name[i] >= 'A' && name[i] <= 'Z') ||
+					(name[i] >= 'a' && name[i] <= 'z') ||
+					(name[i] >= '0' && name[i] <= '9') ||
+					name[i] == '_'))
+			return false;
+
+	return true;
+}
