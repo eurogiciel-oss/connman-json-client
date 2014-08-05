@@ -38,50 +38,34 @@
 
 #include "commands.h"
 
+/*
+ * This file is a facilitator between the engine and then connman dbus service.
+ */
+
 extern DBusConnection *connection;
 
+// Callback called when a command return.
 extern void (*commands_callback)(struct json_object *data, json_bool is_error);
-
-extern void (*commands_signal)(struct json_object *data);
-
 void (*commands_callback)(struct json_object *data, json_bool is_error) = NULL;
+
+// Callback called when a signal is emitted.
+extern void (*commands_signal)(struct json_object *data);
 void (*commands_signal)(struct json_object *data) = NULL;
 
-
-static bool check_dbus_name(const char *name)
-{
-	/*
-	 * Valid dbus chars should be [A-Z][a-z][0-9]_
-	 * and should not start with number.
-	 */
-	unsigned int i;
-
-	if (!name || name[0] == '\0')
-		return false;
-
-	for (i = 0; name[i] != '\0'; i++)
-		if (!((name[i] >= 'A' && name[i] <= 'Z') ||
-					(name[i] >= 'a' && name[i] <= 'z') ||
-					(name[i] >= '0' && name[i] <= '9') ||
-					name[i] == '_'))
-			return false;
-
-	return true;
-}
-
-static char* get_path(char *full_path)
-{
-	char *path;
-
-	path = strrchr(full_path, '/');
-	if (path && *path != '\0')
-		path++;
-	else
-		path = full_path;
-
-	return path;
-}
-
+/*
+ * Get called when a connman dbus method return. This function format parameters
+ * and "forward" the callback to commands_callback.
+ *
+ * Format of the callback:
+ *	- error: { key_dbus_json_agent_error_key: [ "error string" ] }
+ *	- success: { key_command: "command string", ... }
+ *	- with user data: { ... , key_return_force_refresh: "user data string" }
+ *
+ * @param iter answer to the command
+ * @param error if an error occured, this will be filled with the appropriate
+ *		error message
+ * @param user_data data passed by the user while calling the method
+ */
 static void call_return_list(DBusMessageIter *iter, const char *error,
 		void *user_data)
 {
@@ -111,71 +95,22 @@ static void call_return_list(DBusMessageIter *iter, const char *error,
 	commands_callback(res, jerror);
 }
 
+/*
+ * Invoke call_return_list then free user_data.
+ */
 static void call_return_list_free(DBusMessageIter *iter,
 		const char *error, void *user_data)
 {
-	call_return_list(iter, error, get_path(user_data));
+	char *dbus_short_name = extract_dbus_short_name(user_data);
+
+	call_return_list(iter, error, dbus_short_name);
 	free(user_data);
+	free(dbus_short_name);
 }
 
 /*
-	"valid_technology" | offline
+ * Call the Manager GetProperties method.
  */
-static int cmd_enable(struct json_object *jobj)
-{
-	char *tech;
-	const char *arg = json_object_get_string(jobj);
-	dbus_bool_t b = TRUE;
-
-	if (check_dbus_name(arg) == false)
-		return -EINVAL;
-
-	if (strcmp(arg, "offline") == 0) {
-		tech = strndup(arg, JSON_COMMANDS_STRING_SIZE_SMALL);
-		return dbus_set_property(connection, "/",
-				"net.connman.Manager", call_return_list_free,
-				tech, "OfflineMode", DBUS_TYPE_BOOLEAN, &b);
-	}
-
-	tech = malloc(JSON_COMMANDS_STRING_SIZE_MEDIUM + 1);
-	snprintf(tech, JSON_COMMANDS_STRING_SIZE_MEDIUM,
-			"/net/connman/technology/%s", arg);
-	tech[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
-
-	return dbus_set_property(connection, tech,
-			"net.connman.Technology", call_return_list_free, tech,
-			"Powered", DBUS_TYPE_BOOLEAN, &b);
-}
-
-/*
-	"valid_technology" | offline
- */
-static int cmd_disable(struct json_object *jobj)
-{
-	char *tech;
-	const char *arg = json_object_get_string(jobj);
-	dbus_bool_t b = FALSE;
-
-	if (check_dbus_name(arg) == false)
-		return -EINVAL;
-
-	if (strcmp(arg, "offline") == 0) {
-		tech = strndup(arg, JSON_COMMANDS_STRING_SIZE_SMALL);
-		return dbus_set_property(connection, "/",
-				"net.connman.Manager", call_return_list_free,
-				tech, "OfflineMode", DBUS_TYPE_BOOLEAN, &b);
-	}
-
-	tech = malloc(JSON_COMMANDS_STRING_SIZE_MEDIUM + 1);
-	snprintf(tech, JSON_COMMANDS_STRING_SIZE_MEDIUM,
-			"/net/connman/technology/%s", arg);
-	tech[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
-
-	return dbus_set_property(connection, tech,
-			"net.connman.Technology", call_return_list_free, tech,
-			"Powered", DBUS_TYPE_BOOLEAN, &b);
-}
-
 int __cmd_state(void)
 {
 	return dbus_method_call(connection, key_connman_service,
@@ -183,6 +118,9 @@ int __cmd_state(void)
 			call_return_list, NULL, NULL, NULL);
 }
 
+/*
+ * Call the Manager GetServices method.
+ */
 int __cmd_services(void)
 {
 	return dbus_method_call(connection, key_connman_service,
@@ -190,6 +128,9 @@ int __cmd_services(void)
 			call_return_list, NULL, NULL, NULL);
 }
 
+/*
+ * Call the Manager GetTechnologies method.
+ */
 int __cmd_technologies(void)
 {
 	return dbus_method_call(connection, key_connman_service,
@@ -197,6 +138,12 @@ int __cmd_technologies(void)
 			call_return_list, NULL,	NULL, NULL);
 }
 
+/*
+ * Call the Service Connect method.
+ * This method call will force refresh (key_connect_return is set in user_data
+ * attribute of the command callback).
+ * @param serv_dbus_name the dbus name of the service
+ */
 int __cmd_connect(const char *serv_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
@@ -205,6 +152,10 @@ int __cmd_connect(const char *serv_dbus_name)
 			NULL);
 }
 
+/*
+ * Call the Service Disconnect method.
+ * @param serv_dbus_name the dbus name of the service
+ */
 int __cmd_disconnect(const char *serv_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
@@ -212,6 +163,11 @@ int __cmd_disconnect(const char *serv_dbus_name)
 			call_return_list, NULL, NULL, NULL);
 }
 
+/*
+ * Call the Technology Scan method, note that it will send an error callback if
+ * the technology can't be scanned.
+ * @param tech_dbus_name the dbus name of the technology
+ */
 int __cmd_scan(const char *tech_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
@@ -220,86 +176,10 @@ int __cmd_scan(const char *tech_dbus_name)
 }
 
 /*
-	"valid_technology"
+ * Append the IPv4 json object to iter.
+ * @param iter valid dbus message iteration
+ * @param jobj IPv4 settings
  */
-static int cmd_scan(struct json_object *jobj)
-{
-	char *path;
-	const char *arg = json_object_get_string(jobj);
-
-	path = malloc(JSON_COMMANDS_STRING_SIZE_MEDIUM + 1);
-	snprintf(path, JSON_COMMANDS_STRING_SIZE_MEDIUM,
-			"/net/connman/technology/%s", arg);
-	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
-
-	return dbus_method_call(connection, key_connman_service,
-			path, "net.connman.Technology", "Scan",
-			call_return_list_free, path, NULL, NULL);
-}
-
-/*
-	"valid_service"
- */
-static int cmd_connect(struct json_object *jobj)
-{
-	char *path;
-	const char *arg = json_object_get_string(jobj);
-
-	if (check_dbus_name(arg) == false)
-		return -EINVAL;
-
-	path = malloc(JSON_COMMANDS_STRING_SIZE_MEDIUM + 1);
-	snprintf(path, JSON_COMMANDS_STRING_SIZE_MEDIUM,
-			"/net/connman/service/%s", arg);
-	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
-
-	return dbus_method_call(connection, key_connman_service, path,
-			"net.connman.Service", "Connect", call_return_list_free,
-			path, NULL, NULL);
-}
-
-/*
-	"valid_service"
- */
-static int cmd_disconnect(struct json_object *jobj)
-{
-	char *path;
-	const char *arg = json_object_get_string(jobj);
-
-	if (check_dbus_name(arg) == false)
-		return -EINVAL;
-
-	path = malloc(JSON_COMMANDS_STRING_SIZE_MEDIUM + 1);
-	snprintf(path, JSON_COMMANDS_STRING_SIZE_MEDIUM,
-			"/net/connman/service/%s", arg);
-	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
-
-	return dbus_method_call(connection, key_connman_service, path,
-			"net.connman.Service", "Disconnect",
-			call_return_list_free, path, NULL, NULL);
-}
-
-/*
-	"valid_service"
- */
-static int cmd_remove(struct json_object *jobj)
-{
-	char *path;
-	const char *arg = json_object_get_string(jobj);
-
-	if (check_dbus_name(arg) == false)
-		return -EINVAL;
-
-	path = malloc(JSON_COMMANDS_STRING_SIZE_MEDIUM + 1);
-	snprintf(path, JSON_COMMANDS_STRING_SIZE_MEDIUM,
-			"/net/connman/service/%s", arg);
-	path[JSON_COMMANDS_STRING_SIZE_MEDIUM] = '\0';
-
-	return dbus_method_call(connection, key_connman_service, path,
-			"net.connman.Service", "Remove", call_return_list_free,
-			path, NULL, NULL);
-}
-
 static void config_append_ipv4(DBusMessageIter *iter,
 		struct json_object *jobj)
 {
@@ -308,15 +188,20 @@ static void config_append_ipv4(DBusMessageIter *iter,
 
 	json_object_object_foreach(jobj, key, val) {
 		str = json_object_get_string(val);
-		buf = malloc(sizeof(char) * JSON_COMMANDS_STRING_SIZE_SMALL);
-		strncpy(buf, str, JSON_COMMANDS_STRING_SIZE_SMALL);
-
-		dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING,
-				&buf);
+		buf = strndup(str, JSON_COMMANDS_STRING_SIZE_SMALL);
+		buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
+		dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING, &buf);
 		free(buf);
 	}
 }
 
+/*
+ * Append the IPv6 json object to iter and perform checks, if any error occur
+ * the error callback is emitted. The verifications are detailed in
+ * connman/doc/services-api.txt.
+ * @param iter valid dbus message iteration
+ * @param jobj IPv6 setings
+ */
 static void config_append_ipv6(DBusMessageIter *iter,
 		struct json_object *jobj)
 {
@@ -328,6 +213,7 @@ static void config_append_ipv6(DBusMessageIter *iter,
 		call_return_list(NULL, "No 'Method' set", "");
 		return;
 	}
+
 	method = json_object_get_string(methobj);
 
 	if (strcmp("6to4", method) == 0) {
@@ -343,18 +229,19 @@ static void config_append_ipv6(DBusMessageIter *iter,
 					DBUS_TYPE_BYTE, &tmp);
 		} else {
 			str = json_object_get_string(val);
-			buf = malloc(sizeof(char) *
-					JSON_COMMANDS_STRING_SIZE_SMALL);
-			strncpy(buf, str, JSON_COMMANDS_STRING_SIZE_SMALL);
-
-			dbus_append_dict_entry(iter, key,
-					DBUS_TYPE_STRING, &buf);
-
+			buf = strndup(str, JSON_COMMANDS_STRING_SIZE_SMALL);
+			buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
+			dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING, &buf);
 			free(buf);
 		}
 	}
 }
 
+/*
+ * Append an array of string to iter.
+ * @param iter valid dbus message iteration
+ * @param jobj the array of strings (in json objects)
+ */
 static void config_append_json_array_of_strings(DBusMessageIter *iter,
 		struct json_object *jobj)
 {
@@ -365,35 +252,41 @@ static void config_append_json_array_of_strings(DBusMessageIter *iter,
 
 	if (jobj && json_object_is_type(jobj, json_type_array)) {
 		len = json_object_array_length(jobj);
+
 		for (i = 0; i < len; i++) {
 			strobj = json_object_array_get_idx(jobj, i);
-			if (strobj) {
-				str = json_object_get_string(strobj);
-				buf = malloc(sizeof(char) *
-						JSON_COMMANDS_STRING_SIZE_SMALL);
-				strncpy(buf, str,
-						JSON_COMMANDS_STRING_SIZE_SMALL);
-				dbus_message_iter_append_basic(iter,
-						DBUS_TYPE_STRING,
-						&buf);
-				free(buf);
-			}
+
+			if (!strobj)
+				continue;
+
+			str = json_object_get_string(strobj);
+			buf = strndup(str, JSON_COMMANDS_STRING_SIZE_SMALL);
+			buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
+			dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &buf);
+			free(buf);
 		}
 	}
 }
 
+/*
+ * Append the Proxy json object to iter and perform checks, if any error occur
+ * the error callback is emitted. The verifications are detailed in
+ * connman/doc/services-api.txt.
+ * @param iter valid dbus message iteration
+ * @param jobj Proxy settings
+ */
 static void config_append_proxy(DBusMessageIter *iter,
 		struct json_object *jobj)
 {
 	struct json_object *methobj, *urlobj, *tmpobj;
 	const char *method, *url;
 	char *buf;
-	int method_len;
 
 	if (!json_object_object_get_ex(jobj, "Method", &methobj)) {
 		call_return_list(NULL, "No 'Method' set", "");
 		return;
 	}
+
 	method = json_object_get_string(methobj);
 
 	if (strcmp(method, "manual") == 0) {
@@ -406,6 +299,7 @@ static void config_append_proxy(DBusMessageIter *iter,
 			tmpobj = 0;
 		dbus_append_dict_string_array(iter, "Excludes",
 				config_append_json_array_of_strings, tmpobj);
+
 	} else if (strcmp(method, "auto") == 0) {
 		if (json_object_object_get_ex(jobj, "URL", &urlobj)) {
 			url = json_object_get_string(urlobj);
@@ -413,12 +307,12 @@ static void config_append_proxy(DBusMessageIter *iter,
 				dbus_append_dict_entry(iter, "URL",
 						DBUS_TYPE_STRING, url);
 		}
+
 	} else if (strcmp(method, "direct") != 0)
 		return;
 
-	method_len = strlen(method) + 1;
-	buf = malloc(sizeof(char) * method_len);
-	strncpy(buf, method, method_len);
+	buf = strndup(method, JSON_COMMANDS_STRING_SIZE_SMALL);
+	buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
 
 	dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING,
 			&buf);
@@ -453,6 +347,9 @@ static void config_append_proxy(DBusMessageIter *iter,
 	   "Nameservers.Configuration: [ "nameserver1", "nameserver2" ],
 	   "Timeservers.Configuration: [ "timeserver1", "timeserver2" ]
    }
+ *
+ * @param service_dbus_name dbus name of the service to configure
+ * @param options json object, see above for format
  */
 int __cmd_config_service(const char *service_dbus_name, struct json_object *options)
 {
@@ -541,6 +438,17 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 	return res;
 }
 
+/*
+ * This is called when some signal have been emitted by the connman dbus
+ * service. It will "forward" the signal in the signal callback with the
+ * following format:
+ *	{
+ *		key_dbus_json_signal_key: "signal name string",
+ *		key_command_interface: "interface string",
+ *		key_command_path: "path string",
+ *		key_command_data: { data of the signal }
+ *	}
+ */
 static DBusHandlerResult monitor_changed(DBusConnection *connection,
 		DBusMessage *message, void *user_data)
 {
@@ -625,6 +533,10 @@ static struct {
 	{ NULL, },
 };
 
+/*
+ * Add a filter on connamn dbus signals.
+ * @param interface one of "Service", "Technology", "Manager"
+ */
 static void monitor_add(const char *interface)
 {
 	bool add_filter = true, found = false;
@@ -669,6 +581,10 @@ static void monitor_add(const char *interface)
 		call_return_list(NULL, err.message, "");
 }
 
+/*
+ * Remove a filter on connman dbus signals.
+ * @param interface one of "Service", "Technology", "Manager"
+ */
 static void monitor_del(const char *interface)
 {
 	bool del_filter = true, found = false;
@@ -713,10 +629,12 @@ static void monitor_del(const char *interface)
 }
 
 /*
-   {
-   "monitor_add": [ "Service" ... ],
-   "monitor_del": [ "Manager" ... ]
-   }
+ * Add and remove signal monitoring.
+ * @param jobj json object with the following format:
+ *	{
+ *		"monitor_add": [ "Service" ... ],
+ *		"monitor_del": [ "Manager" ... ]
+ *	}
  */
 int __cmd_monitor(struct json_object *jobj)
 {
@@ -741,77 +659,4 @@ int __cmd_monitor(struct json_object *jobj)
 	}
 
 	return -EINPROGRESS;
-}
-
-/*
-   {
-   "command": "monitor",
-   "data": {...}
-   }
- */
-int command_dispatcher(DBusConnection *dbus_conn,
-		struct json_object *jobj)
-{
-
-	struct json_object *data, *tmp;
-	const char *command;
-	int res;
-
-	connection = dbus_conn;
-
-	if (!json_object_object_get_ex(jobj, "command", &tmp)) {
-		call_return_list(NULL, "No 'command' set", "");
-		json_object_put(jobj);
-		return -EINVAL;
-	}
-
-	command = json_object_get_string(tmp);
-
-	if (!command || command[0] == '\0') {
-		call_return_list(NULL, "Unknown command", "");
-		json_object_put(jobj);
-		return -EINVAL;
-	}
-
-	if (!json_object_object_get_ex(jobj, "data", &data))
-		data = NULL;
-
-	/*
-	if (strcmp(command, "config") == 0)
-		res = __cmd_config_service(data);
-
-	else*/ if (strcmp(command, "remove") == 0)
-		res = cmd_remove(data);
-
-	else if (strcmp(command, "disconnect") == 0)
-		res = cmd_disconnect(data);
-
-	else if (strcmp(command, "connect") == 0)
-		res = cmd_connect(data);
-
-	else if (strcmp(command, "scan") == 0)
-		res = cmd_scan(data);
-
-	else if (strcmp(command, "disable") == 0)
-		res = cmd_disable(data);
-
-	else if (strcmp(command, "enable") == 0)
-		res = cmd_enable(data);
-
-	else if (strcmp(command, "agent_register") == 0)
-		res = agent_register(connection);
-
-	else if (strcmp(command, "agent_unregister") == 0) {
-		agent_unregister(connection, NULL);
-		res = 0;
-	}
-
-	else {
-		res = -EINVAL;
-		call_return_list(NULL, "Unknown command", "");
-	}
-
-	json_object_put(jobj);
-
-	return res;
 }
