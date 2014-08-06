@@ -51,9 +51,6 @@ int __cmd_scan(const char *tech_dbus_name);
 
 int __cmd_config_service(const char *service_name, struct json_object *options);
 
-int command_dispatcher(DBusConnection *dbus_conn,
-	struct json_object *jobj);
-
 #ifdef __cplusplus
 }
 #endif

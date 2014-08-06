@@ -32,97 +32,111 @@
 #include "dbus_helpers.h"
 #include "dbus_json.h"
 #include "keys.h"
+#include "string_utils.h"
 
 #include "agent.h"
 
-void (*agent_callback)(struct json_object *data, struct agent_data *request) = NULL;
-void (*agent_error_callback)(struct json_object *data) = NULL;
-
-static DBusConnection *agent_connection;
-
 /*
- * agent_error_callback is dedicated to agent register/unregister errors.
+ * This is a strip down of the agent.c implementation in connmanctl.
+ * GLib dependancies have been removed as well as vpn_agent. Finally, the
+ * overall is more simple and only allow a single agent request at any given
+ * time.
  */
 
+// This is the generic callback for agent requests / errors.
+void (*agent_callback)(struct json_object *data, struct agent_data *request) = NULL;
+
+// agent_error_callback is dedicated to agent register/unregister errors.
+void (*agent_error_callback)(struct json_object *data) = NULL;
+
+// The agent have to have his own dbus connection.
+static DBusConnection *agent_connection;
+
+// The callback to call to respond to an agent browser requets.
 void request_browser_return(struct json_object *connected,
 		struct agent_data *request);
 
+// The callback to call to respond to an agent error.
 void report_error_return(struct json_object *retry, struct agent_data *request);
 
 /*
-{
-	"ERROR Agent": "erreur_msg...",
-	"service": "/net/connman..."
-}
+ * Format the agent error:
+ {
+ 	key_dbus_json_agent_error_key: error,
+ 	key_service: service
+ }
 */
 static struct json_object* format_agent_error(const char *error,
-				const char *service)
+		const char *service)
 {
 	struct json_object *res;
 
 	res = json_object_new_object();
-
 	json_object_object_add(res, key_dbus_json_agent_error_key,
 			json_object_new_string(error));
-	json_object_object_add(res, key_service, json_object_new_string(service));
+	json_object_object_add(res, key_service,
+			json_object_new_string(service));
 
 	return res;
 }
 
 /*
-{
-	...,
-	"msg": "Retry ?",
-	"cb": "respond_error_cb"
-}
+ * Format the agent message and indicate the appropriate callback for the
+ * answer. This is done by adding the following attributes to jerror.
+ {
+ 	... ,
+ 	key_agent_error_message: msg,
+ 	key_agent_error_callback: cb
+ }
 */
 static void format_agent_with_callback(struct json_object *jerror,
 		const char *msg, const char *cb)
 {
 	json_object_object_add(jerror, key_agent_error_message,
 			json_object_new_string(msg));
-	json_object_object_add(jerror, "callback", json_object_new_string(cb));
+	json_object_object_add(jerror, key_agent_error_callback,
+			json_object_new_string(cb));
 }
 
 /*
-{
-	"MSG Agent": "some info",
-	"service": "/net/connman...",
-	"data": {...}|json_object_null
-}
+ * Format an agent message.
+ * @param data Can be NULL, in that case the attribute key_agent_msg_data won't
+ * be set.
+ {
+ 	key_dbus_json_agent_msg_key: msg,
+ 	key_service: service,
+ 	key_agent_msg_data: { data }
+ }
 */
 static struct json_object* format_agent_msg(const char *msg,
-				const char *service, struct json_object *data)
+		const char *service, struct json_object *data)
 {
 	struct json_object *res;
 
 	res = json_object_new_object();
 
 	json_object_object_add(res, key_dbus_json_agent_msg_key,
-		json_object_new_string(msg));
-	json_object_object_add(res, key_service, json_object_new_string(service));
+			json_object_new_string(msg));
+	json_object_object_add(res, key_service,
+			json_object_new_string(service));
 
 	if (data)
-		json_object_object_add(res, "data", data);
+		json_object_object_add(res, key_agent_msg_data, data);
 
 	return res;
 }
 
+/*
+ * The agent_request is used to keep in a place multiple informations on the
+ * agent and the current request. See agent.h for definition.
+ */
 static struct agent_data agent_request = {
 	key_agent_interface,
 };
 
-static char *strip_path(char *path)
-{
-	char *name = strrchr(path, '/');
-	if (name)
-		name++;
-	else
-		name = path;
-
-	return name;
-}
-
+/*
+ * Return the custom agent dbus path.
+ */
 static char *agent_path(void)
 {
 	static char path[] = "/connman_json_agent";
@@ -288,13 +302,14 @@ static DBusMessage *agent_report_error(DBusConnection *connection,
 	dbus_message_iter_init(message, &iter);
 
 	dbus_message_iter_get_basic(&iter, &path);
-	service = strip_path(path);
+	service = extract_dbus_short_name(path);
 
 	dbus_message_iter_next(&iter);
 	dbus_message_iter_get_basic(&iter, &error);
 
 	tmp = format_agent_error(error, service);
 	format_agent_with_callback(tmp, "Retry ?", "report_error_return");
+	free(service);
 
 	agent_request.message = dbus_message_ref(message);
 	agent_callback(tmp, &agent_request);
@@ -315,12 +330,13 @@ static DBusMessage *agent_request_input(DBusConnection *connection,
 	dbus_message_iter_init(message, &iter);
 
 	dbus_message_iter_get_basic(&iter, &str);
-	service = strip_path(str);
+	service = extract_dbus_short_name(str);
 
 	dbus_message_iter_next(&iter);
 
 	res = format_agent_msg("Input Requested", service,
 			dbus_to_json(&iter));
+	free(service);
 
 	agent_request.message = message;
         agent_callback(res, &agent_request);
@@ -452,10 +468,11 @@ int agent_register(DBusConnection *connection)
 }
 
 /*
- * Called with the result of the input
+ * Called with the result of an agent input request. This reply to the request
+ * after json object to dbus message translation.
  */
 int json_to_agent_response(struct json_object *jobj,
-				struct agent_data *request)
+		struct agent_data *request)
 {
 	DBusMessageIter iter;
 	DBusMessageIter dict;
@@ -483,10 +500,4 @@ int json_to_agent_response(struct json_object *jobj,
 	pending_command_complete();
 
 	return res;
-}
-
-void agent_cancel_request(void)
-{
-	pending_message_remove(&agent_request);
-	pending_command_complete();
 }

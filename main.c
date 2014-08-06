@@ -37,23 +37,6 @@
 #include "keys.h"
 #include "popup.h"
 
-/*
-
- +-----------------------------------+
- |  win_header                       | <-- state area
- +-----------------------------------+
- |                                   |
- |                                   |
- |                                   |
- |  win_body                         |
- |                                   |
- |                                   |
- |                                   |
- +-----------------------------------+
- |  win_footer                       | <-- infos/errors area
- +-----------------------------------+
-
- */
 extern int nb_items;
 extern int nb_fields;
 extern struct context_info context;
@@ -463,7 +446,7 @@ static void action_on_agent_msg(struct json_object *jobj)
 
 	assert(!popup_exists());
 	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &request);
-	json_object_object_get_ex(jobj, "data", &data);
+	json_object_object_get_ex(jobj, key_agent_msg_data, &data);
 	json_object_object_get_ex(jobj, key_service, &service);
 	request_str = json_object_get_string(request);
 	service_str = json_object_get_string(service);
@@ -502,7 +485,7 @@ static void action_on_agent_msg(struct json_object *jobj)
 		"ERROR Agent": "invalid-key",
 		"service": "wifi_XXXXXXXXXXXX_YYYYYYYYYYYYYY_managed_psk",
 		"agent_error_message": "Retry ?",
-		"callback": "report_error_return"
+		key_agent_error_callback: "report_error_return"
 	}
  */
 static void action_on_agent_error(struct json_object *jobj)

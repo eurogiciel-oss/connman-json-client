@@ -30,6 +30,11 @@
 
 #include "ncurses_utils.h"
 
+/*
+ * This file aim to provide simple functions to print informations in win_footer
+ * and keep footer messages.
+ */
+
 extern WINDOW *win_footer;
 
 static void print_in_footer(bool is_error, int line, const char *msg,

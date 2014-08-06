@@ -30,6 +30,11 @@
 
 #include "dbus_helpers.h"
 
+/*
+ * This set of functions aim to simplify dbus use. it's a copy of the identic
+ * connman file free of gblib dependancies.
+ */
+
 struct dbus_callback {
 	connman_dbus_method_return_func_t cb;
 	void *user_data;
@@ -308,25 +313,8 @@ dbus_bool_t dbus_send_message(DBusConnection *connection, DBusMessage *message)
 
 	if (dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_METHOD_CALL)
 		dbus_message_set_no_reply(message, TRUE);
-	else if (dbus_message_get_type(message) == DBUS_MESSAGE_TYPE_SIGNAL) {
-		/*
-		const char *path = dbus_message_get_path(message);
-		const char *interface = dbus_message_get_interface(message);
-		const char *name = dbus_message_get_member(message);
-		const GDBusArgInfo *args;
-
-		if (!check_signal(connection, path, interface, name, &args))
-			goto out;
-		*/
-		assert(1);
-	}
-
-	// Flush pending signal to guarantee message order
-	//g_dbus_flush(connection);
 
 	result = dbus_connection_send(connection, message, NULL);
-
-//out:
 	dbus_message_unref(message);
 
 	return result;

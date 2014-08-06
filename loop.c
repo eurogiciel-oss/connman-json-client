@@ -33,15 +33,31 @@
 
 #include "loop.h"
 
+/*
+ * This file is a custom implementation of main loop, it's used to listen for
+ * events from dbus and stdin.
+ */
+
+// The dbus connection to listen to.
 extern DBusConnection *connection;
+
+// The function to execute on stdin event.
 extern void ncurses_action(void);
 
 #define WATCHEDS_MAX_COUNT 20
 
+// Indicate if the loop has to be stopped.
 static int stop_loop = 0;
+
+// Dbus watches.
 static DBusWatch *watcheds[WATCHEDS_MAX_COUNT];
+
+// Count effective number of dbus watch.
 static int watcheds_count;
 
+/*
+ * Add a dbus watch.
+ */
 static dbus_bool_t add_watch(DBusWatch *watch, void *data)
 {
 	if (watcheds_count >= WATCHEDS_MAX_COUNT)
@@ -51,6 +67,9 @@ static dbus_bool_t add_watch(DBusWatch *watch, void *data)
 	return 1;
 }
 
+/*
+ * Remove a dbus watch.
+ */
 static void remove_watch(DBusWatch *watch, void *data)
 {
 	int i, n;
@@ -66,12 +85,18 @@ static void remove_watch(DBusWatch *watch, void *data)
 	}
 }
 
+/*
+ * Initialise the loop.
+ */
 void loop_init(void)
 {
 	dbus_connection_set_watch_functions(connection, add_watch, remove_watch,
 			NULL, NULL, NULL);
 }
 
+/*
+ * Terminate the loop.
+ */
 void loop_terminate(void)
 {
 	dbus_connection_unref(connection);
@@ -79,11 +104,18 @@ void loop_terminate(void)
 	watcheds_count = 0;
 }
 
+/*
+ * Order to the loop to stop.
+ */
 void loop_quit(void)
 {
 	stop_loop = 1;
 }
 
+/*
+ * Run the loop.
+ * @param poll_stdin Do the loop have to poll on stdin
+ */
 void loop_run(bool poll_stdin)
 {
 	struct pollfd fds[WATCHEDS_MAX_COUNT];

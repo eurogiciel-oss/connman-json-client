@@ -32,6 +32,9 @@ extern "C" {
 typedef DBusMessage * (* DBusMethodFunction) (DBusConnection *connection,
 		DBusMessage *message, void *user_data);
 
+/*
+ * This function is called when a connman dbus method have been called.
+ */
 extern void callback_ended(void);
 
 typedef void (*connman_dbus_method_return_func_t)(DBusMessageIter *iter,

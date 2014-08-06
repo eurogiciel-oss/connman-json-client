@@ -55,6 +55,8 @@ extern const char key_connman_path[];
 
 extern char key_agent_interface[];
 extern const char key_agent_error_message[];
+extern const char key_agent_error_callback[];
+extern const char key_agent_msg_data[];
 
 extern const char key_scan_return[];
 extern const char key_connect_return[];

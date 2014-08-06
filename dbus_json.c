@@ -31,11 +31,20 @@
 
 #include "dbus_json.h"
 
+/*
+ * This file aim to provide simple translation functions from dbus messages to
+ * json objects.
+ */
+
 static struct json_object* dbus_basic_json(DBusMessageIter *iter);
 static struct json_object* dbus_dict_json(DBusMessageIter *iter);
 static struct json_object* dbus_array_json(DBusMessageIter *iter);
 static struct json_object* _dbus_to_json(DBusMessageIter *iter);
 
+/*
+ * Translate basic dbus message types in json ones.
+ * Basic types: string, boolean, int...
+ */
 static struct json_object* dbus_basic_json(DBusMessageIter *iter)
 {
 	int arg_type, i;
@@ -81,7 +90,7 @@ static struct json_object* dbus_basic_json(DBusMessageIter *iter)
 		break;
 
 	default:
-                fprintf(stderr, "Error on type %d(%c) in"
+                fprintf(stderr, "Error on type %d(%c) in "
                 "dbus_basic_json\n", arg_type, (char)arg_type);
                 res = NULL;
 		break;
@@ -90,6 +99,9 @@ static struct json_object* dbus_basic_json(DBusMessageIter *iter)
         return res;
 }
 
+/*
+ * Translate a dbus message typed object in a json object.
+ */
 static struct json_object* dbus_dict_json(DBusMessageIter *iter)
 {
         int arg_type;
@@ -124,6 +136,9 @@ static struct json_object* dbus_dict_json(DBusMessageIter *iter)
         return dict;
 }
 
+/*
+ * Translate a dbus message typed array in a json object array.
+ */
 static struct json_object* dbus_array_json(DBusMessageIter *iter)
 {
         struct json_object *jarray, *tmp;
@@ -141,6 +156,9 @@ static struct json_object* dbus_array_json(DBusMessageIter *iter)
         return jarray;
 }
 
+/*
+ * Translates a dbus message of composed types in the json object equivalent.
+ */
 static struct json_object* _dbus_to_json(DBusMessageIter *iter)
 {
         struct json_object *res;
@@ -186,6 +204,9 @@ static struct json_object* _dbus_to_json(DBusMessageIter *iter)
         return res;
 }
 
+/*
+ * Same as the function above.
+ */
 struct json_object* dbus_to_json(DBusMessageIter *iter)
 {
         struct json_object *res = NULL, *tmp = _dbus_to_json(iter);
@@ -200,6 +221,9 @@ struct json_object* dbus_to_json(DBusMessageIter *iter)
         return (res == NULL ? tmp : res);
 }
 
+/*
+ * Translate a json object typed object in the dbus message equivalent.
+ */
 int json_to_dbus_dict(struct json_object *jobj,
 			DBusMessageIter *dict)
 {

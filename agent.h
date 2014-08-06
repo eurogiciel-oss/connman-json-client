@@ -45,12 +45,10 @@ int agent_register(DBusConnection *connection);
 
 void agent_unregister(DBusConnection *connection, void *user_data);
 
+void report_error_return(struct json_object *retry, struct agent_data *request);
+
 int json_to_agent_response(struct json_object *jobj,
 		struct agent_data *request);
-
-void agent_cancel_request(void);
-
-void report_error_return(struct json_object *retry, struct agent_data *request);
 
 #ifdef __cplusplus
 }

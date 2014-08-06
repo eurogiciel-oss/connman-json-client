@@ -32,6 +32,8 @@ char* extract_dbus_short_name(const char *str);
 
 bool check_dbus_name(const char *name);
 
+bool string_ends_with_configuration(const char *str);
+
 #ifdef __cplusplus
 }
 #endif

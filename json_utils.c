@@ -29,8 +29,19 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "keys.h"
+
 #include "json_utils.h"
 
+/*
+ * This file handle the validation of json input data.
+ */
+
+/*
+ * Check if str match trusted.
+ * @param str The string to test
+ * @param trusted The trusted regex string
+ */
 bool __match_strings(const char *str, const char *trusted)
 {
 	int regexp_err, regexp_match;
@@ -44,6 +55,9 @@ bool __match_strings(const char *str, const char *trusted)
 	return (regexp_match == 0);
 }
 
+/*
+ * Same as above but with json object strings.
+ */
 static bool json_match_string(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
@@ -51,6 +65,11 @@ static bool json_match_string(struct json_object *jobj,
 			json_object_get_string(jtrusted));
 }
 
+/*
+ * Check if an json object match a trusted one. This function is recursive.
+ * @param jobj The json object to test
+ * @param jtrusted The trusted json object
+ */
 static bool json_match_object(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
@@ -74,6 +93,13 @@ static bool json_match_object(struct json_object *jobj,
 	return res;
 }
 
+/*
+ * Check if all the elements in the jobj json object array match the first
+ * element of the jtrusted json object array. This function is recursive.
+ * @param jobj The json object array to test
+ * @param jtrusted The trusted json object array, only the first element of this
+ *	array will be used.
+ */
 static bool json_match_array(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
@@ -99,6 +125,10 @@ static bool json_match_array(struct json_object *jobj,
 	return res;
 }
 
+/*
+ * Check if the type of jobj and jtrusted match and redirect to the appropriate
+ * match functions above. 
+ */
 bool __json_type_dispatch(struct json_object *jobj,
 		struct json_object *jtrusted)
 {
@@ -138,6 +168,9 @@ bool __json_type_dispatch(struct json_object *jobj,
 	return res;
 }
 
+/*
+ * Return the string representation of jobj if it is a string, NULL otherwise.
+ */
 static const char* get_string_from_jobj(struct json_object *jobj)
 {
 	if (json_object_get_type(jobj) == json_type_string)
@@ -146,22 +179,15 @@ static const char* get_string_from_jobj(struct json_object *jobj)
 	return NULL;
 }
 
-static struct json_object* get_jobj_from_key(struct json_object *jobj,
-		const char *key_id)
-{
-	struct json_object *data;
-	json_object_object_get_ex(jobj, key_id, &data);
-
-	if (!data)
-		return NULL;
-
-	return data;
-}
-
+/*
+ * Get the value of the key_command attribute in the jobj json object.
+ * NULL is returned if key_command isn't found.
+ */
 const char* __json_get_command_str(struct json_object *jobj)
 {
 	struct json_object *cmd;
-	cmd = get_jobj_from_key(jobj, "command");
+
+	json_object_object_get_ex(jobj, key_command, &cmd);
 
 	if (cmd)
 		return get_string_from_jobj(cmd);

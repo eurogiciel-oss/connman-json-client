@@ -51,6 +51,8 @@ const char key_connman_path[] = "/";
 
 char key_agent_interface[] = "net.connman.Agent";
 const char key_agent_error_message[] = "agent_error_message";
+const char key_agent_error_callback[] = "agent_error_callback";
+const char key_agent_msg_data[] = "agent_msg_data";
 
 const char key_scan_return[] = "scan_return";
 const char key_connect_return[] = "connect_return";

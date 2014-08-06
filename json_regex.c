@@ -26,14 +26,28 @@
 #include "json_regex.h"
 #include "keys.h"
 
+/*
+ * Some regex applyed by the engine on input data cannot be translated into json
+ * with json_tokener. IPV6_REGEX is a quite good example of why it can't be
+ * translated into json as it is.
+ */
+
 static const char *IPV6_REGEX = "^((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((b((25[0-5])|(1d{2})|(2[0-4]d)|(d{1,2}))b).){3}(b((25[0-5])|(1d{2})|(2[0-4]d)|(d{1,2}))b))|(([0-9A-Fa-f]{1,4}:){0,5}:((b((25[0-5])|(1d{2})|(2[0-4]d)|(d{1,2}))b).){3}(b((25[0-5])|(1d{2})|(2[0-4]d)|(d{1,2}))b))|(::([0-9A-Fa-f]{1,4}:){0,5}((b((25[0-5])|(1d{2})|(2[0-4]d)|(d{1,2}))b).){3}(b((25[0-5])|(1d{2})|(2[0-4]d)|(d{1,2}))b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))$";
 
 static const char *IPV4_REGEX = "^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
 
+// Regex filter for agent response
 extern struct json_object *jregex_agent_response;
+
+// Regex filter for agent retry
 extern struct json_object *jregex_agent_retry_response;
+
+// Regex filter for service configuration
 extern struct json_object *jregex_config_service;
 
+/*
+ * Generate json objects used for verification.
+ */
 void generate_trusted_json(void)
 {
 	struct json_object *tmp, *opt, *arr;
@@ -50,6 +64,7 @@ void generate_trusted_json(void)
 
 	jregex_agent_retry_response = json_object_new_boolean(TRUE);
 
+	// See commands.c __cmd_config_service for a better idea of the format.
 	jregex_config_service = json_object_new_object();
 	opt = json_object_new_object();
 	tmp = json_object_new_object();
@@ -92,6 +107,9 @@ void generate_trusted_json(void)
 
 }
 
+/*
+ * Free the json objects.
+ */
 void free_trusted_json(void)
 {
 	json_object_put(jregex_agent_response);

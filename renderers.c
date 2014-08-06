@@ -33,33 +33,78 @@
 
 #include "renderers.h"
 
+/*
+ * This file handle the "rendering" work: create and free ncurses elements.
+ */
+
+/*
+ * See main.c repos_cursor.
+ */
 extern void repos_cursor(void);
 
+// We keep the number of items and fields for convenience.
 int nb_items = 0;
 int nb_fields = 0;
 
+// Current position in y and x for field positions.
 static int cur_y, cur_x;
 
+/*
+ * Windows (ncurses term) used,
+
+ +-----------------------------------+
+ |  win_header                       | <-- state area
+ +-----------------------------------+
+ |                                   |
+ |                                   |
+ |                                   |
+ |  win_body                         |
+ |                                   |
+ |                                   |
+ |                                   |
+ +-----------------------------------+
+ |  win_footer                       | <-- infos/errors area
+ +-----------------------------------+
+
+ */
 WINDOW *win_header, *win_footer, *win_body, *inner;
-ITEM **my_items;
-MENU *my_menu;
-FIELD **field;
-FORM *my_form;
+
+// number of lines in win_body
 int win_body_lines;
+
+// Items (ncurses term), used by my_menu
+ITEM **my_items;
+
+// Menu (ncurses term)
+MENU *my_menu;
+
+// Field (ncurses term), used by my_form
+FIELD **field;
+
+// Form (ncurses term)
+FORM *my_form;
+
+// Number of pages the form is displayed on (if the window is too small for the
+// form, a scrolling form is created.
 int nb_pages;
+
+// Holds informations on the current context, see renderers.h.
 struct context_info context;
 
-char *true_false_enum[] = { "true", "false", NULL };
-char *ipv4_method_enum[] = { "dhcp", "manual", "off", NULL };
-char *ipv6_method_enum[] = { "auto", "manual", "off", "6to4", NULL };
-char *ipv6_privacy_enum[] = { "auto", "disabled", "enabled", "prefered", NULL };
-char *proxy_method_enum[] = { "direct", "manual", "auto", NULL };
-char str_field[2];
+// Allowed string values for service configuration fields
+static char *true_false_enum[] = { "true", "false", NULL };
+static char *ipv4_method_enum[] = { "dhcp", "manual", "off", NULL };
+static char *ipv6_method_enum[] = { "auto", "manual", "off", "6to4", NULL };
+static char *ipv6_privacy_enum[] = { "auto", "disabled", "enabled", "prefered", NULL };
+static char *proxy_method_enum[] = { "direct", "manual", "auto", NULL };
+
+// Used to tag service configuration fields for repos_cursor
+static char str_field[2];
 
 /*
- * This is useful to mark field with a value for repos_cursor()
+ * This is useful to mark field with a value for repos_cursor
  */
-char* get_str_key() {
+static char* get_str_key() {
 	int cur_ch;
 	cur_ch = str_field[0];
 
@@ -75,6 +120,8 @@ char* get_str_key() {
 }
 
 /*
+ * Create a menu of technologies: a selectable list of technologies.
+ * @param jobj format of the json object:
  [
 	 [
 		 "\/net\/connman\/technology\/wifi",
@@ -171,6 +218,8 @@ static void renderers_technologies(struct json_object *jobj)
 }
 
 /*
+ * Fill win_header with a title, state and OfflineMode informations.
+ * @param jobj the state object of engine:
  {
 	 "State": "ready",
 	 "OfflineMode": false,
@@ -193,12 +242,21 @@ static void renderers_state(struct json_object *jobj)
 	wrefresh(win_header);
 }
 
+/*
+ * The home page is a list of technologies and the general status of connman.
+ * Thus, this function call renderers_technologies and renderers_state.
+ * @param jobj A json object with technologies and state:
+ {
+ 	key_technologies: { ... },
+	key_state: { ... }
+ }
+ */
 void __renderers_home_page(struct json_object *jobj)
 {
 	struct json_object *tech, *state;
 
-	json_object_object_get_ex(jobj, "technologies", &tech);
-	json_object_object_get_ex(jobj, "state", &state);
+	json_object_object_get_ex(jobj, key_technologies, &tech);
+	json_object_object_get_ex(jobj, key_state, &state);
 
 	if (tech == NULL || state == NULL)
 		return;
@@ -213,6 +271,9 @@ void __renderers_home_page(struct json_object *jobj)
 	context.current_context = CONTEXT_HOME;
 }
 
+/*
+ * Free the menu and items memory.
+ */
 void __renderers_free_home_page(void)
 {
 	int i;
@@ -243,7 +304,8 @@ void __renderers_free_home_page(void)
 }
 
 /*
- { ..., "Connected":true, ...  } -> true | false
+ * Return true if jobj has a Connected attribute set to true, false otherwise.
+ * @param jobj A json object service dict
  */
 static bool tech_is_connected(struct json_object *jobj)
 {
@@ -251,9 +313,14 @@ static bool tech_is_connected(struct json_object *jobj)
 
 	json_object_object_get_ex(jobj, "Connected", &jbool);
 
-	return (json_object_get_boolean(jbool) ? true : false);
+	return ((jbool && json_object_get_boolean(jbool)) ? true : false);
 }
 
+/*
+ * This is used to compute how many fields are needed to display the service
+ * configuration.
+ * @param jobj The service dictionary
+ */
 static int compute_nb_elems_in_service(struct json_object *jobj)
 {
 	int longest_key_len = 0, tmp_len, tmp_len_obj = 0;
@@ -274,6 +341,14 @@ static int compute_nb_elems_in_service(struct json_object *jobj)
 	return longest_key_len > tmp_len_obj ? longest_key_len : tmp_len_obj;
 }
 
+/*
+ * Create a field and fill the buffer with the string representation of val.
+ * This field can be visited by the cursor, it also dynamicaly resize (in buffer
+ * length).
+ * @param longest_key_len What is the longest length of a label field, this
+ *	information is used to place the field on the x axis
+ * @param val The json object representation to print in the field buffer
+ */
 static FIELD* render_field(int longest_key_len, struct json_object *val)
 {
 	FIELD *result;
@@ -289,6 +364,13 @@ static FIELD* render_field(int longest_key_len, struct json_object *val)
 	return result;
 }
 
+/*
+ * Create a field and fill the buffer with label_str. This field cannot be
+ * modified nor visited by the cursor.
+ * @param longest_key_len What is the longest length of a label field, this
+ *	information is used to place the field on the x axis
+ * @param label_str The string to fill the label buffer with
+ */
 static FIELD* render_label(int longest_key_len, const char *label_str)
 {
 	FIELD *result;
@@ -306,20 +388,13 @@ static FIELD* render_label(int longest_key_len, const char *label_str)
 }
 
 /*
- * Test if a given string ends with ".Configuration".
+ * This sets basic form validation, for example IPv4 Method can be one of
+ * ipv4_method_enum.
+ * @param pos The index of the field in the global variable
+ * @param is_autoconnect Indicate if this is the "AutoConnect" field.
+ * @param obj_str The string of the label surrounding field[pos]
+ * @param key The string of the current field
  */
-bool string_ends_with_configuration(const char *str)
-{
-	char *last_token;
-
-	last_token = strrchr(str, '.');
-
-	if (last_token)
-		last_token++;
-
-	return (last_token && strcmp(last_token, "Configuration") == 0);
-}
-
 static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str,
 		const char *key)
 {
@@ -333,6 +408,7 @@ static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str
 		return;
 	}
 
+	// Only "Method" attributes below this point.
 	if (strcmp(key, "Method") != 0 || obj_str == NULL)
 		return;
 
@@ -352,6 +428,18 @@ static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str
 	}
 }
 
+/*
+ * Recursive function responsible to create fields, position them and setting
+ * the modifiable fields. All of this from a service dictionary.
+ * To keep the cursor from moving on signal, a string is affected to mark each
+ * field. This is used by repos_cursor().
+ * @param longest_key_len The longuest length for a label
+ * @param pos The index in field[]
+ * @param jobj The service dictionary
+ * @param is_obj_modifiable Use to set the whole object as modifiable (usefull
+ *	for IPv4.Configuration for example)
+ * @param obj_str The string representing the "hash" of a surrounding object
+ */
 static void render_fields_from_jobj(int longest_key_len, int *pos,
 		struct json_object *jobj, bool is_obj_modifiable,
 		const char *obj_str)
@@ -409,6 +497,15 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 	}
 }
 
+/*
+ * Compute the number of needed fields, allocate the memory, render fields and
+ * print them. The result is a form (html-like) displaying every information
+ * connman has on a service, some of the settings can be modified. See
+ * connman/doc/services-api.txt for more informations.
+ * The first label contain the service name in the user pointer.
+ * @param tech_array Array of json objects representing technologies
+ * @param serv_array Array of json objects representing services
+ */
 static void renderers_service_config(struct json_object *tech_array,
 		struct json_object *serv_array)
 {
@@ -453,6 +550,11 @@ static void renderers_service_config(struct json_object *tech_array,
 	repos_cursor();
 }
 
+/*
+ * This function update the message on the service configuration view.
+ * It's realy meaningful when the configuration form can't be displayed entirely
+ * on the screen.
+ */
 void __renderers_services_config_paging(void)
 {
 	if (!my_form)
@@ -468,6 +570,11 @@ void __renderers_services_config_paging(void)
 	pos_form_cursor(my_form);
 }
 
+/*
+ * Render the services items for ethernet technology.
+ * Only the "Name" (connman term) is displayed.
+ * @param jobj The services array
+ */
 static void renderers_services_ethernet(struct json_object *jobj)
 {
 	int i;
@@ -504,6 +611,11 @@ static void renderers_services_ethernet(struct json_object *jobj)
 	}
 }
 
+/*
+ * Render the services items for wifi technology.
+ * eSSID, State, Security and Signal strengh are displayed.
+ * @param jobj The services array
+ */
 static void renderers_services_wifi(struct json_object *jobj)
 {
 	int i;
@@ -560,6 +672,12 @@ static void renderers_services_wifi(struct json_object *jobj)
 	}
 }
 
+/*
+ * Allocate memory, render the items and print them. The result is a menu of
+ * compatible services the user can connect to.
+ * The switch between wifi and ethernet technoloy is done here.
+ * @param jobj The services array
+ */
 static void renderers_services(struct json_object *jobj)
 {
 	char *dbus_short_name;
@@ -606,6 +724,9 @@ static void renderers_services(struct json_object *jobj)
 	wrefresh(win_body);
 }
 
+/*
+ * Free the memory allocated for the services view by renderers_services.
+ */
 void __renderers_free_services(void)
 {
 	int i;
@@ -629,6 +750,17 @@ void __renderers_free_services(void)
 	nb_items = 0;
 }
 
+/*
+ * Render the service configuration view or the services connection view
+ * depending if the technology is connected or not. See renderers_services and
+ * renderers_service_config for more information on those.
+ * The context global variable is modified here.
+ * @param jobj The following json object:
+ {
+ 	key_technology: [ "technology dbus name", { tech dict } ],
+	key_services: [ [ "service dbus name", { serv dict } ], ... ]
+ }
+ */
 void __renderers_services(struct json_object *jobj)
 {
 	struct json_object *tech_array, *tech_dict, *serv_array;
@@ -662,6 +794,9 @@ void __renderers_services(struct json_object *jobj)
 	}
 }
 
+/*
+ * Free the allocated memory for the service configuration view.
+ */
 void __renderers_free_service_config(void)
 {
 	int i;

@@ -89,3 +89,18 @@ bool check_dbus_name(const char *name)
 
 	return true;
 }
+
+/*
+ * Test if a given string ends with ".Configuration".
+ */
+bool string_ends_with_configuration(const char *str)
+{
+	char *last_token;
+
+	last_token = strrchr(str, '.');
+
+	if (last_token)
+		last_token++;
+
+	return (last_token && strcmp(last_token, "Configuration") == 0);
+}
