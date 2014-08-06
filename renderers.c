@@ -468,6 +468,11 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 				set_new_page(field[(*pos)-1], TRUE);
 				move_field(field[(*pos)-1], cur_y, cur_x);
 				nb_pages++;
+			} else if (cur_y+1 >= win_body_lines-3) {
+				cur_y = 1;
+				set_new_page(field[(*pos)-1], TRUE);
+				move_field(field[(*pos)-1], cur_y, cur_x);
+				nb_pages++;
 			}
 
 			field[*pos] = render_field(longest_key_len, val);
