@@ -538,11 +538,11 @@ static void renderers_service_config(struct json_object *tech_array,
 	field[nb_fields] = NULL;
 
 	my_form = new_form(field);
-	assert(my_form);
+	assert(my_form != NULL);
 	set_form_win(my_form, win_body);
 	inner = derwin(win_body, win_body_lines-1, COLS-2, 2, 1);
 	box(inner, 0, 0);
-	assert(inner);
+	assert(inner != NULL);
 	set_form_sub(my_form, inner);
 
 	post_form(my_form);

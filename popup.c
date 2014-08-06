@@ -24,17 +24,57 @@
 
 #include "popup.h"
 
+/*
+ * This file is a basic popup implementation for ncurses.
+ */
+
+/*
+ * Windows for the popup:
+ +--------------------------+ <-- win_body
+ |+------------------------+|
+ ||                        ||
+ || win_form               ||
+ ||                        ||
+ |+------------------------+|
+ || win_menu               ||
+ |+------------------------+|
+ +--------------------------+
+ */
 static WINDOW *win_body;
 static WINDOW *win_form;
 static WINDOW *win_menu;
+
+// Used to know if the cursor is on the buttons or the form.
 static bool is_on_button;
+
+// Used to put the buttons.
 static MENU *popup_menu;
+
+// Buttons of the menu.
 static ITEM **popup_items;
 
+// Used for the form. They aren't static because we need them in main.c when a
+// button is pressed.
 FORM *popup_form;
 FIELD **popup_fields;
+
+// This is handy and remember the button text and the function to execute when
+// pressed. See popup.h for declaration. This pointer is shared with main.c.
+// Note: this has to be maintained by the client.
+// Note: buttons names must be unique.
 struct popup_actions **popup_btn_action;
 
+/*
+ * Create and initialize a new popup. popup_btn_action *must* be filled before
+ * this call.
+ * @param rows The number of rows for win_body
+ * @param cols The number of lines for win_body
+ * @param posy Position of the top left corner on the y axis
+ * @param posx Position of the top left corner on the x axis
+ * @param requests An array of strings to put in the form. This can be null:
+ *	only the title and the buttons will be present.
+ * @param title A string to print in the popup.
+ */
 void popup_new(int rows, int cols, int posy, int posx, char **requests,
 		char *title)
 {
@@ -124,6 +164,10 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 	pos_form_cursor(popup_form);
 }
 
+/*
+ * Delete the popup allocated memory.
+ * This *won't* free popup_btn_action.
+ */
 void popup_delete(void)
 {
 	int i;
@@ -155,6 +199,10 @@ void popup_delete(void)
 	popup_menu = NULL;
 }
 
+/*
+ * The button have been pressed, the corresponding function is called.
+ * @param item The button pressed
+ */
 static void driver_buttons(ITEM *item)
 {
 	const char *name = item_name(item);
@@ -167,6 +215,11 @@ static void driver_buttons(ITEM *item)
 		popup_btn_action[i]->func();
 }
 
+/*
+ * Switch from field to buttons.
+ * This change the foreground color of the button so the user think the cursor
+ * is on the first button.
+ */
 static void switch_to_buttons(void)
 {
 	// Those 2 lines allow the field buffer to be set
@@ -178,6 +231,10 @@ static void switch_to_buttons(void)
 	set_menu_fore(popup_menu, A_REVERSE); // "show" the button
 }
 
+/*
+ * This is called by main.c ncurses_action everytime a popup exists.
+ * It's used to handle characters input in forms and button pressing.
+ */
 void popup_driver(int ch)
 {
 	switch (ch) {
@@ -255,12 +312,18 @@ void popup_driver(int ch)
 	wrefresh(win_body);
 }
 
+/*
+ * Refresh the popup.
+ */
 void popup_refresh(void)
 {
 	box(win_body, 0, 0);
 	wrefresh(win_body);
 }
 
+/*
+ * Indicate if the popup exists.
+ */
 bool popup_exists(void)
 {
 	return (win_body != NULL);

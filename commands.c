@@ -61,6 +61,8 @@ void (*commands_signal)(struct json_object *data) = NULL;
  *	- success: { key_command: "command string", ... }
  *	- with user data: { ... , key_return_force_refresh: "user data string" }
  *
+ * Note: setting user data will force refresh in context CONTEXT_SERVICES.
+ *
  * @param iter answer to the command
  * @param error if an error occured, this will be filled with the appropriate
  *		error message

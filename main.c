@@ -33,14 +33,29 @@
 #include "loop.h"
 #include "ncurses_utils.h"
 #include "string_utils.h"
+#include "json_utils.h"
 #include "renderers.h"
 #include "keys.h"
 #include "popup.h"
 
+/*
+ * This file is the glue between ncurses and the engine.
+ * Thus every key pressed and callback end up here.
+ *
+ */
+
+/*
+ * See renderers.c for details.
+ */
 extern int nb_items;
 extern int nb_fields;
+
+// See renderers.h for details.
 extern struct context_info context;
 
+/*
+ * See popup.c for details.
+ */
 extern FORM *popup_form;
 extern FIELD **popup_fields;
 extern struct popup_actions **popup_btn_action;
@@ -51,9 +66,16 @@ static void connect_to_service();
 static void print_home_page(void);
 static void exec_refresh(void);
 
+// Refres isn't automatic, this could be problematic in high wifi density areas:
+// your cursor would move around endlessly. Thus, automatic refresh is disabled
+// by default in the context CONTEXT_SERVICES. The variable here force the
+// refresh, it's true on special occasions like the user just managed to connect
 static bool allow_refresh = false;
+
+// This is used to store requests from the agent.
 static char **agent_request_input_fields;
 
+// This table contain every default action possible for each CONTEXT_XXX
 static struct {
 	void (*func)(); // What to do on action
 	void (*func_free)(); // Free elements for the current_context
@@ -69,13 +91,19 @@ static struct {
 		print_services_for_tech, refresh_services_msg }, // CONTEXT_SERVICES
 };
 
+/*
+ * This method is mandatory, and might be of use somehow
+ * e.g quite handy for debugging operations
+ */
 void callback_ended(void)
 {
-	// This method is mandatory, and might be of use somehow
-	// e.g quite handy for debugging operations
 	return;
 }
 
+/*
+ * Free everything possible in context.serv and context.tech.
+ * Freed variables will be se to NULL.
+ */
 static void context_free_userptr_data()
 {
 	if (context.serv) {
@@ -104,6 +132,10 @@ static void context_free_userptr_data()
 
 }
 
+/*
+ * Free the popup allocated memory.
+ * Note: this is different from popup.c popup_delete().
+ */
 static void popup_free(void)
 {
 	int i = 0;
@@ -122,6 +154,9 @@ static void popup_free(void)
 	exec_refresh();
 }
 
+/*
+ * Stop the main loop and free the allocated memory.
+ */
 static void stop_loop(int signum)
 {
 	loop_quit();
@@ -145,6 +180,11 @@ static void stop_loop(int signum)
 	context.tech = NULL;
 }
 
+/*
+ * Refresh context.cursor_id, free memory for the current context and execute
+ * func_refresh() of the current context. The popup will be refreshed as well
+ * (if it exists).
+ */
 static void exec_refresh()
 {
 	ITEM *item;
@@ -186,7 +226,7 @@ void repos_cursor(void)
 	if (!context.cursor_id)
 		return;
 
-	if (nb_fields != 0) {
+	if (nb_fields != 0) { // On forms
 		nb_active_fields = 0;
 
 		for (i = 0; i < nb_fields; i++) {
@@ -204,7 +244,8 @@ void repos_cursor(void)
 				break;
 			}
 		}
-	} else if (nb_items != 0) {
+
+	} else if (nb_items != 0) { // On menus
 		for (i = 0; i < nb_items; i++) {
 			item = my_items[i];
 			tmp = item_userptr(item);
@@ -224,6 +265,10 @@ void repos_cursor(void)
 	wrefresh(win_body);
 }
 
+/*
+ * Free the current context and execute the appropriate action.
+ * context.serv or context.tech are also updated.
+ */
 static void exec_action(struct userptr_data *data)
 {
 	switch (context.current_context) {
@@ -247,6 +292,10 @@ static void exec_action(struct userptr_data *data)
 	context_actions[context.current_context].func();
 }
 
+/*
+ * Free the current context and execute func_back(). Also refresh the popup (if
+ * it exists)
+ */
 static void exec_back(void)
 {
 	context_free_userptr_data();
@@ -257,14 +306,17 @@ static void exec_back(void)
 		popup_refresh();
 }
 
+/*
+ * Execute a renderer action based on the jobj command name.
+ * @param jobj See engine.c for more details.
+ */
 static void action_on_cmd_callback(struct json_object *jobj)
 {
-	struct json_object *data, *cmd_name_tmp;
+	struct json_object *data;
 	const char *cmd_name;
 
-	json_object_object_get_ex(jobj, key_command, &cmd_name_tmp);
 	json_object_object_get_ex(jobj, key_command_data, &data);
-	cmd_name = json_object_get_string(cmd_name_tmp);
+	cmd_name = __json_get_command_str(jobj);
 
 	/* dispatch according to the command name */
 	if (strcmp(key_engine_get_home_page, cmd_name) == 0)
@@ -277,6 +329,13 @@ static void action_on_cmd_callback(struct json_object *jobj)
 		print_info_in_footer(true, "Unknown command called");
 }
 
+/*
+ * Execute a refresh or back action depending on the signal data.
+ * If the technology the user is currently looking at is removed, exec_back() is
+ * executed. Else, exec_refresh() is executed, see comments on allow_refresh for
+ * more details.
+ * @param jobj See the format in commands.c monitor_changed().
+ */
 static void action_on_signal(struct json_object *jobj)
 {
 	struct json_object *sig_path, *sig_data;
@@ -317,6 +376,11 @@ static void action_on_signal(struct json_object *jobj)
 	}
 }
 
+/*
+ * The user pressed "OK" button on an agent request, all fields of the popup
+ * form are extracted and the agent response is sent. The popup will also be
+ * removed.
+ */
 static void popup_btn_action_ok(void)
 {
 	struct json_object *cmd, *cmd_data;
@@ -353,7 +417,8 @@ static void popup_btn_action_ok(void)
 }
 
 /*
- * json_type_bool -> int
+ * Response to the "Retry" agent error.
+ * @param retry (json_type_bool -> int) 0 or 1
  */
 static void popup_btn_action_retry(int retry)
 {
@@ -369,16 +434,27 @@ static void popup_btn_action_retry(int retry)
 	popup_free();
 }
 
+/*
+ * Respond TRUE to the "Retry" agent error.
+ */
 static void popup_btn_action_retry_ok(void)
 {
 	popup_btn_action_retry(TRUE);
 }
 
+/*
+ * Respond FALSE to the "Retry" agent error.
+ */
 static void popup_btn_action_retry_no(void)
 {
 	popup_btn_action_retry(FALSE);
 }
 
+/*
+ * Create the fields for the popup.
+ * @param serv_name the service name the agen request is about
+ * @param data the agent requested values, see connman/doc/agent.api for details
+ */
 static void agent_input_popup(const char *serv_name, struct json_object *data)
 {
 	int i, len = 0;
@@ -436,6 +512,11 @@ static void agent_input_popup(const char *serv_name, struct json_object *data)
 	agent_request_input_fields[len*2] = NULL;
 }
 
+/*
+ * Create the popup from an agent request.
+ * Note: only "Input Requested" is fully supported for now.
+ * @param jobj the agent request
+ */
 static void action_on_agent_msg(struct json_object *jobj)
 {
 	struct json_object *request, *service, *data;
@@ -481,12 +562,14 @@ static void action_on_agent_msg(struct json_object *jobj)
 }
 
 /*
-	{
-		"ERROR Agent": "invalid-key",
-		"service": "wifi_XXXXXXXXXXXX_YYYYYYYYYYYYYY_managed_psk",
-		"agent_error_message": "Retry ?",
-		key_agent_error_callback: "report_error_return"
-	}
+ * Create a popup from an agent error message. Often asking to retry.
+ * @param jobj the agent error e.g.:
+ {
+ 	key_dbus_json_agent_error_key: "invalid-key",
+ 	key_service: "wifi_XXXXXXXXXXXX_YYYYYYYYYYYYYY_managed_psk",
+ 	key_agent_error_message: "Retry ?",
+ 	key_agent_error_callback: "report_error_return"
+ }
  */
 static void action_on_agent_error(struct json_object *jobj)
 {
@@ -522,6 +605,17 @@ static void action_on_agent_error(struct json_object *jobj)
 	popup_refresh();
 }
 
+/*
+ * Dispatch the callback data to the appropriate functions based on the presence
+ * of the attributes in jobj:
+ *	- key_command
+ *	- key_dbus_json_signal_key
+ *	- key_dbus_json_agent_msg_key
+ *	- key_dbus_json_agent_error_key
+ *	- key_return_force_refresh
+ * @param status the status code of this callback, status < 0 is an error
+ * @param jobj see above
+ */
 static void main_callback(int status, struct json_object *jobj)
 {
 	struct json_object *cmd_tmp, *signal, *agent_msg, *agent_error,
@@ -569,6 +663,9 @@ static void main_callback(int status, struct json_object *jobj)
 	json_object_put(jobj);
 }
 
+/*
+ * Asks for the home page.
+ */
 static void print_home_page(void)
 {
 	struct json_object *cmd;
@@ -577,10 +674,16 @@ static void print_home_page(void)
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_home_page));
-	engine_query(cmd);
+
+	if (engine_query(cmd) == -EINVAL)
+		print_info_in_footer(true, "@print_home_page:"
+				"invalid argument/value");
 }
 
-static void print_services_for_tech()
+/*
+ * Asks for the services for the technology in context.tech->dbus_name.
+ */
+static void print_services_for_tech(void)
 {
 	struct json_object *cmd, *tmp;
 
@@ -598,7 +701,10 @@ static void print_services_for_tech()
 				"invalid argument/value");
 }
 
-static void connect_to_service()
+/*
+ * Asks to connect to the service in context.serv->dbus_name.
+ */
+static void connect_to_service(void)
 {
 	struct json_object *cmd, *tmp;
 
@@ -621,6 +727,10 @@ static void connect_to_service()
 	wrefresh(win_body);
 }
 
+/*
+ * Asks for deconnection of data->dbus_name.
+ * @param data the user pointer of a technology item
+ */
 static void disconnect_of_service(struct userptr_data *data)
 {
 	struct json_object *cmd, *tmp;
@@ -639,6 +749,10 @@ static void disconnect_of_service(struct userptr_data *data)
 				" invalid argument/value");
 }
 
+/*
+ * Asks for a rescan of the technology. Not all technologies support this.
+ * @param tech_dbus_name the technology to rescan
+ */
 static void scan_tech(const char *tech_dbus_name)
 {
 	struct json_object *cmd, *tmp;
@@ -650,7 +764,10 @@ static void scan_tech(const char *tech_dbus_name)
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_scan_tech));
 	json_object_object_add(cmd, key_command_data, tmp);
-	engine_query(cmd);
+
+	if (engine_query(cmd) == -EINVAL)
+		print_info_in_footer(true, "@scan_tech:"
+				" invalid argument/value");
 }
 
 /*
@@ -679,6 +796,14 @@ static int search_previous_config_label(int pos)
 	return pos;
 }
 
+/*
+ * Extract a json object out of the fields of form between 2 indexes min and
+ * max.
+ * @param jobj holds the extracted json objects
+ * @param min the lowest index in field[]
+ * @param max the highest index in field[], you can set this to 0 to cover all
+ *	fields
+ */
 static void build_json_config(struct json_object *jobj, int min, int max)
 {
 	int i, pos_label;
@@ -717,10 +842,12 @@ static void build_json_config(struct json_object *jobj, int min, int max)
 			tmp = json_tokener_parse(buffer_clean);
 
 			if (tmp && json_object_get_type(tmp) != json_type_array) {
+				// We are waiting for an array
+				// We create one if we didn't get an array
 				json_object_put(tmp);
 				tmp = json_object_new_array();
 
-			} else if (!tmp)
+			} else if (!tmp) // in case the field buffer was empty
 				tmp = json_object_new_array();
 
 			if (json_object_array_length(tmp) == 0)
@@ -734,7 +861,11 @@ static void build_json_config(struct json_object *jobj, int min, int max)
 	}
 }
 
-static void modify_service_config()
+/*
+ * Asks to modify the configuration of a context.serv->dbus_name. Configuration
+ * is extracted from the fields of the form and formated into a json object.
+ */
+static void modify_service_config(void)
 {
 	int i, pos_label;
 	struct json_object *cmd = json_object_new_object();
@@ -781,6 +912,9 @@ static void modify_service_config()
 				"invalid argument/value");
 }
 
+/*
+ * React to key pressed within context CONTEXT_HOME.
+ */
 static void exec_action_context_home(int ch)
 {
 	ITEM *item;
@@ -808,6 +942,9 @@ static void exec_action_context_home(int ch)
 	}
 }
 
+/*
+ * React to key pressed within context CONTEXT_SERVICE_CONFIG.
+ */
 static void exec_action_context_service_config(int ch)
 {
 	int cur_page = form_page(my_form);
@@ -875,6 +1012,9 @@ static void exec_action_context_service_config(int ch)
 	}
 }
 
+/*
+ * React to key pressed within context CONTEXT_SERVICES.
+ */
 static void exec_action_context_services(int ch)
 {
 	ITEM *item;
@@ -906,6 +1046,9 @@ static void exec_action_context_services(int ch)
 	}
 }
 
+/*
+ * Called by the main loop, dispatch key pressed according to the context.
+ */
 void ncurses_action(void)
 {
 	int ch = wgetch(win_body);
@@ -953,6 +1096,12 @@ void ncurses_action(void)
 	wrefresh(win_body);
 }
 
+/*
+ * Initialize everything, run the loop then terminate everything.
+ * Adjustments on the win_body_lines variable is done here (in some cases the
+ * scrolling menu won't be displayed, thus we have to adjust the window height
+ * for everything to work smoothly).
+ */
 int main(void)
 {
 	struct json_object *cmd;

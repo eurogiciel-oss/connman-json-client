@@ -43,13 +43,16 @@ struct userptr_data {
 	char *pretty_name;	// e.g. MySuperWifiESSID
 };
 
+// Different contexts we can be in
 typedef enum {CONTEXT_HOME, CONTEXT_SERVICE_CONFIG, CONTEXT_SERVICES} context_t;
 
+// This keep track of the execution context, the cursor position and current
+// service and technology user pointers.
 struct context_info {
 	context_t current_context;
 	struct userptr_data *serv;
 	struct userptr_data *tech;
-	char *cursor_id;
+	char *cursor_id;		// tag-like, see main.c repos_cursor()
 };
 
 void __renderers_home_page(struct json_object *jobj);
@@ -64,11 +67,8 @@ void __renderers_free_service_config(void);
 
 void __renderers_free_services(void);
 
-bool string_ends_with_configuration(const char *str);
-
 #ifdef __cplusplus
 }
-
 #endif
 
 #endif

@@ -113,7 +113,7 @@ static bool json_match_array(struct json_object *jobj,
 		return false;
 
 	elem_trusted = json_object_array_get_idx(jtrusted, 0);
-	assert(elem_trusted);
+	assert(elem_trusted != NULL);
 	assert(json_object_get_type(elem_trusted) != json_type_null);
 
 	for (i = 0; i < array_len && res == true; i++) {
