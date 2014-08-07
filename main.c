@@ -37,11 +37,11 @@
 #include "renderers.h"
 #include "keys.h"
 #include "popup.h"
+#include "special_win.h"
 
 /*
  * This file is the glue between ncurses and the engine.
  * Thus every key pressed and callback end up here.
- *
  */
 
 /*
@@ -74,6 +74,13 @@ static bool allow_refresh = false;
 
 // This is used to store requests from the agent.
 static char **agent_request_input_fields;
+
+/*
+ * Those are special windows, they are over anything until 'Esc'.
+ * It's handy for error reporting and help messages.
+ */
+WINDOW *win_error;
+WINDOW *win_help;
 
 // This table contain every default action possible for each CONTEXT_XXX
 static struct {
@@ -129,7 +136,62 @@ static void context_free_userptr_data()
 			context.tech->pretty_name = NULL;
 		}
 	}
+}
 
+/*
+ * Just a handy way to report a new error.
+ */
+static void report_error()
+{
+	if (win_error)
+		return;
+
+	win_error = win_error_new(win_body_lines, COLS-2, 2, 1,
+			"invalid argument/value");
+}
+
+/*
+ * Create a help window matching the context.
+ */
+static void get_help_window()
+{
+	char *msg;
+
+	if (win_help)
+		return;
+
+	switch (context.current_context) {
+		case CONTEXT_HOME:
+			msg = " This view list technologies,\n"
+				" * Press 'Return'/'Enter' for details on a technology\n"
+				" * Press 'd' to disconnect a technology\n"
+				" * Press 'F5' to force refresh\n"
+				" * Press '^C' to quit";
+			break;
+
+		case CONTEXT_SERVICE_CONFIG:
+			msg = " This view list the connection/service settings.\n"
+				" You can modify underlined settings. Some settings require arrays of strings. Those have the following format: '[ \"string\" ]'.\n"
+				" * 'AutoConnect' can be 'true' or 'false'\n"
+				" * 'Nameservers.Configuration', 'Timeservers.Configuration' and 'Domains.Configuration' must be an array of strings (IPs, domains...).\n"
+				" * 'Proxy.Configuration':\n"
+				"\t* 'Method' one of 'direct', 'auto' or 'manual'\n"
+				"\t* 'URL' the url\n"
+				"\t* 'Servers' and 'Excludes' are array of strings\n"
+				" * 'IPv4' 'Method' one of 'dhcp', 'manual' and 'off'.\n"
+				" * 'IPv6' 'Method' one of 'auto', 'manual', '6to4' and 'off'.";
+			break;
+
+		case CONTEXT_SERVICES:
+			msg = " This view list services the technology can connect to.\n"
+				" * Press 'Return'/'Enter' to connect\n"
+				" * Press 'F5' to force a refresh\n"
+				" * Press 'F6' to force a rescan for the technology (all technologies don't support this)\n"
+				" * Press '^C' to quit";
+			break;
+	}
+
+	win_help = win_help_new(win_body_lines, COLS-2, 2, 1, msg);
 }
 
 /*
@@ -166,6 +228,12 @@ static void stop_loop(int signum)
 
 	if (popup_exists())
 		popup_free();
+
+	if (win_exists(win_error))
+		win_driver(&win_error, 27);
+
+	if (win_exists(win_help))
+		win_driver(&win_help, 27);
 
 	engine_terminate();
 	context_free_userptr_data();
@@ -209,6 +277,12 @@ static void exec_refresh()
 
 	if (popup_exists())
 		popup_refresh();
+
+	if (win_exists(win_error))
+		win_driver(&win_error, 0);
+
+	if (win_exists(win_help))
+		win_driver(&win_help, 0);
 }
 
 /*
@@ -304,6 +378,12 @@ static void exec_back(void)
 
 	if (popup_exists())
 		popup_refresh();
+
+	if (win_exists(win_error))
+		win_refresh(win_error);
+
+	if (win_exists(win_help))
+		win_refresh(win_help);
 }
 
 /*
@@ -412,7 +492,10 @@ static void popup_btn_action_ok(void)
 	}
 
 	json_object_object_add(cmd, key_command_data, cmd_data);
-	engine_query(cmd);
+
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+
 	popup_free();
 }
 
@@ -430,7 +513,9 @@ static void popup_btn_action_retry(int retry)
 	json_object_object_add(cmd, key_command_data,
 			json_object_new_boolean(retry));
 
-	engine_query(cmd);
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+
 	popup_free();
 }
 
@@ -661,6 +746,12 @@ static void main_callback(int status, struct json_object *jobj)
 	context_actions[context.current_context].func_refresh_msg();
 	// Release the memory of the json object now
 	json_object_put(jobj);
+
+	if (win_exists(win_error))
+		win_driver(&win_error, 0);
+
+	if (win_exists(win_help))
+		win_driver(&win_help, 0);
 }
 
 /*
@@ -676,8 +767,7 @@ static void print_home_page(void)
 			json_object_new_string(key_engine_get_home_page));
 
 	if (engine_query(cmd) == -EINVAL)
-		print_info_in_footer(true, "@print_home_page:"
-				"invalid argument/value");
+		report_error();
 }
 
 /*
@@ -697,8 +787,7 @@ static void print_services_for_tech(void)
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
-		print_info_in_footer(true, "@print_services_for_tech:"
-				"invalid argument/value");
+		report_error();
 }
 
 /*
@@ -718,8 +807,7 @@ static void connect_to_service(void)
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
-		print_info_in_footer(true, "@connect_to_service:"
-				" invalid argument/value");
+		report_error();
 
 	werase(win_body);
 	mvwprintw(win_body, 1, 2, "Connecting...");
@@ -745,8 +833,7 @@ static void disconnect_of_service(struct userptr_data *data)
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
-		print_info_in_footer(true, "@disconnect_of_service:"
-				" invalid argument/value");
+		report_error();
 }
 
 /*
@@ -766,8 +853,7 @@ static void scan_tech(const char *tech_dbus_name)
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
-		print_info_in_footer(true, "@scan_tech:"
-				" invalid argument/value");
+		report_error();
 }
 
 /*
@@ -908,8 +994,7 @@ static void modify_service_config(void)
 			json_object_new_string(key_engine_config_service));
 
 	if (engine_query(cmd) == -EINVAL)
-		print_info_in_footer(true, "@modify_service_config: "
-				"invalid argument/value");
+		report_error();
 }
 
 /*
@@ -1053,6 +1138,32 @@ void ncurses_action(void)
 {
 	int ch = wgetch(win_body);
 
+	if (win_exists(win_help)) {
+		win_driver(&win_help, ch);
+
+		// If the user hit any key but 'Esc', the work is over
+		if (win_exists(win_help))
+			return;
+
+		// If the user hit 'Esc', we have to force the redraw of win_body
+		redrawwin(win_body);
+		wrefresh(win_body);
+		return;
+	}
+
+	if (win_exists(win_error)) {
+		win_driver(&win_error, ch);
+
+		// If the user hit any key but 'Esc', the work is over
+		if (win_exists(win_error))
+			return;
+
+		// If the user hit 'Esc', we have to force the redraw of win_body
+		redrawwin(win_body);
+		wrefresh(win_body);
+		return;
+	}
+
 	if (ch == 27) {
 
 		if (context.current_context == CONTEXT_HOME)
@@ -1065,6 +1176,12 @@ void ncurses_action(void)
 
 	if (ch == KEY_F(5)) {
 		exec_refresh();
+		return;
+	}
+
+	if (ch == KEY_F(1)) {
+		get_help_window();
+		win_refresh(win_help);
 		return;
 	}
 
@@ -1153,7 +1270,9 @@ int main(void)
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_home_page));
-	engine_query(cmd);
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+
 	refresh_home_msg();
 
 	loop_run(true);

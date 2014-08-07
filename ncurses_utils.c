@@ -68,19 +68,19 @@ void refresh_home_msg(void)
 {
 	print_info_in_footer(false, "'d' to disconnect, 'Return' for"
 			" details, 'F5' to force refresh");
-	print_info_in_footer2(false, "^C to quit");
+	print_info_in_footer2(false, "^C to quit, 'F1' for help");
 }
 
 void refresh_services_msg(void)
 {
 	print_info_in_footer(false, "'F5' to refresh network list, "
 			"'F6' to force a scan");
-	print_info_in_footer2(false, "'Esc' to get back");
+	print_info_in_footer2(false, "'Esc' to get back, 'F1' for help");
 }
 
 void refresh_service_config_msg(void)
 {
 	print_info_in_footer(false, "'F5' to force refresh, "
 			"'F7' to submit settings");
-	print_info_in_footer2(false, "'Esc' to get back");
+	print_info_in_footer2(false, "'Esc' to get back, 'F1' for help");
 }

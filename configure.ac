@@ -73,11 +73,7 @@ PKG_CHECK_MODULES(NCURSESW, ncurses, [
 fi
 
 
-AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
-AC_CHECK_HEADER_STDBOOL
-AC_TYPE_INT32_T
+AC_CHECK_HEADERS([ assert.h config.h ctype.h errno.h poll.h regex.h signal.h stdarg.h stdbool.h stdio.h stdlib.h string.h sys/types.h unistd.h])
 
-AC_FUNC_MALLOC
-AC_CHECK_FUNCS([strerror strndup strrchr])
 
 AC_OUTPUT(Makefile)
