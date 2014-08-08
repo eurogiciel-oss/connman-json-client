@@ -106,8 +106,12 @@ static void call_return_list_free(DBusMessageIter *iter,
 	char *dbus_short_name = extract_dbus_short_name(user_data);
 
 	call_return_list(iter, error, dbus_short_name);
-	free(user_data);
-	free(dbus_short_name);
+
+	if (user_data)
+		free(user_data);
+
+	if (dbus_short_name)
+		free(dbus_short_name);
 }
 
 /*
@@ -186,14 +190,10 @@ static void config_append_ipv4(DBusMessageIter *iter,
 		struct json_object *jobj)
 {
 	const char *str;
-	char *buf;
 
 	json_object_object_foreach(jobj, key, val) {
 		str = json_object_get_string(val);
-		buf = strndup(str, JSON_COMMANDS_STRING_SIZE_SMALL);
-		buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
-		dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING, &buf);
-		free(buf);
+		dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING, &str);
 	}
 }
 
@@ -209,7 +209,6 @@ static void config_append_ipv6(DBusMessageIter *iter,
 {
 	struct json_object *methobj;
 	const char *method, *str;
-	char *buf;
 
 	if (!json_object_object_get_ex(jobj, "Method", &methobj)) {
 		call_return_list(NULL, "No 'Method' set", "");
@@ -231,10 +230,7 @@ static void config_append_ipv6(DBusMessageIter *iter,
 					DBUS_TYPE_BYTE, &tmp);
 		} else {
 			str = json_object_get_string(val);
-			buf = strndup(str, JSON_COMMANDS_STRING_SIZE_SMALL);
-			buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
-			dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING, &buf);
-			free(buf);
+			dbus_append_dict_entry(iter, key, DBUS_TYPE_STRING, &str);
 		}
 	}
 }
@@ -250,7 +246,6 @@ static void config_append_json_array_of_strings(DBusMessageIter *iter,
 	struct json_object *strobj;
 	int i, len;
 	const char *str;
-	char *buf;
 
 	if (jobj && json_object_is_type(jobj, json_type_array)) {
 		len = json_object_array_length(jobj);
@@ -262,10 +257,7 @@ static void config_append_json_array_of_strings(DBusMessageIter *iter,
 				continue;
 
 			str = json_object_get_string(strobj);
-			buf = strndup(str, JSON_COMMANDS_STRING_SIZE_SMALL);
-			buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
-			dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &buf);
-			free(buf);
+			dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &str);
 		}
 	}
 }
@@ -282,7 +274,6 @@ static void config_append_proxy(DBusMessageIter *iter,
 {
 	struct json_object *methobj, *urlobj, *tmpobj;
 	const char *method, *url;
-	char *buf;
 
 	if (!json_object_object_get_ex(jobj, "Method", &methobj)) {
 		call_return_list(NULL, "No 'Method' set", "");
@@ -313,12 +304,7 @@ static void config_append_proxy(DBusMessageIter *iter,
 	} else if (strcmp(method, "direct") != 0)
 		return;
 
-	buf = strndup(method, JSON_COMMANDS_STRING_SIZE_SMALL);
-	buf[JSON_COMMANDS_STRING_SIZE_SMALL-1] = '\0';
-
-	dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING,
-			&buf);
-	free(buf);
+	dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING, &method);
 }
 
 /*

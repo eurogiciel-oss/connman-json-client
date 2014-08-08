@@ -238,8 +238,7 @@ int json_to_dbus_dict(struct json_object *jobj,
 			break;
 		}
 
-		dbus_append_dict_entry(dict, key, DBUS_TYPE_STRING,
-				str);
+		dbus_append_dict_entry(dict, key, DBUS_TYPE_STRING, &str);
 	}
 
 	return res;

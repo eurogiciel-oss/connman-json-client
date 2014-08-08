@@ -147,7 +147,7 @@ static void report_error()
 		return;
 
 	win_error = win_error_new(win_body_lines, COLS-2, 2, 1,
-			"invalid argument/value");
+			" Invalid argument/value.");
 }
 
 /*

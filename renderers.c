@@ -334,7 +334,7 @@ static int compute_nb_elems_in_service(struct json_object *jobj)
 		} else
 			nb_fields += 2; // count 2 for a label and a field
 
-		if ((tmp_len = strlen(key)) > longest_key_len)
+		if (key && (tmp_len = strlen(key)) > longest_key_len)
 			longest_key_len = tmp_len;
 	}
 
@@ -608,7 +608,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 
 		my_items[i] = new_item(desc, "");
 
-		data = malloc(sizeof(struct userptr_data *));
+		data = malloc(sizeof(struct userptr_data));
 		assert(data != NULL);
 		data->dbus_name = strdup(dbus_name_str);
 		data->pretty_name = strdup(name_str);
@@ -753,6 +753,8 @@ void __renderers_free_services(void)
 	free_menu(my_menu);
 	free(my_items);
 	nb_items = 0;
+	my_menu = NULL;
+	my_items = NULL;
 }
 
 /*

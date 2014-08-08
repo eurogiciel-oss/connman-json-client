@@ -124,16 +124,36 @@ static void better_proxy_conf(struct json_object *serv_dict)
  */
 static void better_ipv4_conf(struct json_object *serv_dict)
 {
-	struct json_object *tmp;
+	struct json_object *ipv4, *tmp, *ref;
 	
-	json_object_object_get_ex(serv_dict, "IPv4", &tmp);
+	json_object_object_get_ex(serv_dict, "IPv4", &ipv4);
+	json_object_object_get_ex(serv_dict, "IPv4.Configuration", &tmp);
 
-	if (!tmp)
+	if (!ipv4)
 		return;
 
-	json_object_object_del(serv_dict, "IPv4.Configuration");
-	json_object_object_add(serv_dict, "IPv4.Configuration",
-			json_object_get(tmp));
+	/*
+	 * This is kind of awful but connman append to send an empty array
+	 * or an object with only the Method attribute
+	 * for IPv4.Configuration instead of an object, so i have to make
+	 * the object myself...
+	 */
+	ref = json_object_new_object();
+	tmp = NULL;
+
+	if (json_object_object_get_ex(ipv4, "Method", &tmp))
+		json_object_object_add(ref, "Method", json_object_new_string(json_object_get_string(tmp)));
+
+	if (json_object_object_get_ex(ipv4, "Address", &tmp))
+		json_object_object_add(ref, "Address", json_object_new_string(json_object_get_string(tmp)));
+
+	if (json_object_object_get_ex(ipv4, "Netmask", &tmp))
+		json_object_object_add(ref, "Netmask", json_object_new_string(json_object_get_string(tmp)));
+
+	if (json_object_object_get_ex(ipv4, "Gateway", &tmp))
+		json_object_object_add(ref, "Gateway", json_object_new_string(json_object_get_string(tmp)));
+
+	json_object_object_add(serv_dict, "IPv4.Configuration", ref);
 }
 
 /*
@@ -142,16 +162,31 @@ static void better_ipv4_conf(struct json_object *serv_dict)
  */
 static void better_ipv6_conf(struct json_object *serv_dict)
 {
-	struct json_object *tmp;
+	struct json_object *ipv6, *tmp, *ref;
 	
-	json_object_object_get_ex(serv_dict, "IPv6", &tmp);
+	json_object_object_get_ex(serv_dict, "IPv6", &ipv6);
 
-	if (!tmp)
+	if (!ipv6 || json_object_get_type(ipv6) != json_type_object)
 		return;
 
-	json_object_object_del(serv_dict, "IPv6.Configuration");
-	json_object_object_add(serv_dict, "IPv6.Configuration",
-			json_object_get(tmp));
+	ref = json_object_new_object();
+
+	if (json_object_object_get_ex(ipv6, "Method", &tmp))
+		json_object_object_add(ref, "Method", json_object_new_string(json_object_get_string(tmp)));
+
+	if (json_object_object_get_ex(ipv6, "Address", &tmp))
+		json_object_object_add(ref, "Address", json_object_new_string(json_object_get_string(tmp)));
+
+	if (json_object_object_get_ex(ipv6, "PrefixLength", &tmp))
+		json_object_object_add(ref, "PrefixLength", json_object_new_int(json_object_get_int(tmp)));
+
+	if (json_object_object_get_ex(ipv6, "Gateway", &tmp))
+		json_object_object_add(ref, "Gateway", json_object_new_string(json_object_get_string(tmp)));
+
+	if (json_object_object_get_ex(ipv6, "Privacy", &tmp))
+		json_object_object_add(ref, "Privacy", json_object_new_string(json_object_get_string(tmp)));
+
+	json_object_object_add(serv_dict, "IPv6.Configuration", ref);
 }
 
 /*
@@ -528,8 +563,10 @@ static int disconnect_technology(struct json_object *jobj)
 	tech_type_str = json_object_get_string(tech_type);
 	json_object_object_get_ex(tech_dict, "Connected", &tmp);
 
-	serv = get_services_matching_tech_type(tech_type_str,
-			(json_object_get_boolean(tmp) ? true : false));
+	if (json_object_get_boolean(tmp) == FALSE)
+		return -EINVAL;
+
+	serv = get_services_matching_tech_type(tech_type_str, true);
 
 	if (serv == NULL || json_object_array_length(serv) != 1)
 		return -EINVAL;
