@@ -514,10 +514,17 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 static void renderers_service_config(struct json_object *tech_array,
 		struct json_object *serv_array)
 {
-	struct json_object *serv_dict;
-	int longest_key_len, i;
+	struct json_object *serv_dict, *tmp, *tmp_val;
+	int longest_key_len, i, k;
 	struct userptr_data *data;
 	const char *serv_dbus_name;
+	const char *keys[] = { "State", "Error", "Name", "Type", "Security",
+		"Strenght", "Favorite", "Immutable", "Roaming", "AutoConnect",
+		"Ethernet", "IPv4", "IPv4.Configuration", "IPv6",
+		"IPv6.Configuration", "Nameservers",
+		"Nameservers.Configuration", "Timeservers",
+		"Timeservers.Configuration", "Domains", "Domains.Configuration",
+		"Proxy", "Proxy.Configuration", "Provider", NULL };
 
 	nb_fields = 0;
 	cur_y = 1;
@@ -534,7 +541,15 @@ static void renderers_service_config(struct json_object *tech_array,
 	i = 0;
 
 	str_field[0] = '\0';
-	render_fields_from_jobj(longest_key_len, &i, serv_dict, false, NULL);
+
+	for (k = 0; keys[k] != NULL; k++) {
+		if (json_object_object_get_ex(serv_dict, keys[k], &tmp_val) == TRUE) {
+			tmp = json_object_new_object();
+			json_object_object_add(tmp, keys[k], json_object_get(tmp_val));
+			render_fields_from_jobj(longest_key_len, &i, tmp, false, NULL);
+			json_object_put(tmp);
+		}
+	}
 
 	data = malloc(sizeof(struct userptr_data));
 	data->dbus_name = strdup(serv_dbus_name);
