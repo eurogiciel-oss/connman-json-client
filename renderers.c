@@ -518,13 +518,15 @@ static void renderers_service_config(struct json_object *tech_array,
 	int longest_key_len, i, k;
 	struct userptr_data *data;
 	const char *serv_dbus_name;
-	const char *keys[] = { "State", "Error", "Name", "Type", "Security",
-		"Strenght", "Favorite", "Immutable", "Roaming", "AutoConnect",
-		"Ethernet", "IPv4", "IPv4.Configuration", "IPv6",
-		"IPv6.Configuration", "Nameservers",
-		"Nameservers.Configuration", "Timeservers",
-		"Timeservers.Configuration", "Domains", "Domains.Configuration",
-		"Proxy", "Proxy.Configuration", "Provider", NULL };
+	const char *keys[] = { key_serv_state, key_serv_error, key_serv_name,
+		key_serv_type, key_serv_security, key_serv_strength,
+		key_serv_favorite, key_serv_immutable, key_serv_roaming,
+		key_serv_autoconnect, key_serv_ethernet, key_serv_ipv4,
+		key_serv_ipv4_config, key_serv_ipv6, key_serv_ipv6_config,
+		key_serv_nameservers, key_serv_nameservers_config,
+		key_serv_timeservers, key_serv_timeservers_config,
+		key_serv_domains, key_serv_domains_config, key_serv_proxy,
+		key_serv_proxy_config, key_serv_prov, NULL };
 
 	nb_fields = 0;
 	cur_y = 1;

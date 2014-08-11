@@ -57,7 +57,7 @@ void (*commands_signal)(struct json_object *data) = NULL;
  * and "forward" the callback to commands_callback.
  *
  * Format of the callback:
- *	- error: { key_dbus_json_agent_error_key: [ "error string" ] }
+ *	- error: { key_error: [ "error string" ] }
  *	- success: { key_command: "command string", ... }
  *	- with user data: { ... , key_return_force_refresh: "user data string" }
  *
@@ -79,7 +79,7 @@ static void call_return_list(DBusMessageIter *iter, const char *error,
 		array = json_object_new_array();
 
 		json_object_array_add(array, json_object_new_string(error));
-		json_object_object_add(res, key_dbus_json_error_key, array);
+		json_object_object_add(res, key_error, array);
 		jerror = TRUE;
 
 	} else {
@@ -120,7 +120,7 @@ static void call_return_list_free(DBusMessageIter *iter,
 int __cmd_state(void)
 {
 	return dbus_method_call(connection, key_connman_service,
-			key_connman_path, "net.connman.Manager", "GetProperties",
+			key_connman_path, key_manager_interface, "GetProperties",
 			call_return_list, NULL, NULL, NULL);
 }
 
@@ -130,7 +130,7 @@ int __cmd_state(void)
 int __cmd_services(void)
 {
 	return dbus_method_call(connection, key_connman_service,
-			key_connman_path, "net.connman.Manager", "GetServices",
+			key_connman_path, key_manager_interface, "GetServices",
 			call_return_list, NULL, NULL, NULL);
 }
 
@@ -140,7 +140,7 @@ int __cmd_services(void)
 int __cmd_technologies(void)
 {
 	return dbus_method_call(connection, key_connman_service,
-			key_connman_path, "net.connman.Manager", "GetTechnologies",
+			key_connman_path, key_manager_interface, "GetTechnologies",
 			call_return_list, NULL,	NULL, NULL);
 }
 
@@ -153,7 +153,7 @@ int __cmd_technologies(void)
 int __cmd_connect(const char *serv_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
-			serv_dbus_name, "net.connman.Service", "Connect",
+			serv_dbus_name, key_service_interface, "Connect",
 			call_return_list_free, strdup(key_connect_return), NULL,
 			NULL);
 }
@@ -165,7 +165,7 @@ int __cmd_connect(const char *serv_dbus_name)
 int __cmd_disconnect(const char *serv_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
-			serv_dbus_name, "net.connman.Service", "Disconnect",
+			serv_dbus_name, key_service_interface, "Disconnect",
 			call_return_list, NULL, NULL, NULL);
 }
 
@@ -177,7 +177,7 @@ int __cmd_disconnect(const char *serv_dbus_name)
 int __cmd_scan(const char *tech_dbus_name)
 {
 	return dbus_method_call(connection, key_connman_service,
-			tech_dbus_name, "net.connman.Technology", "Scan",
+			tech_dbus_name, key_technology_interface, "Scan",
 			call_return_list_free, strdup(key_scan_return), NULL, NULL);
 }
 
@@ -363,21 +363,21 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 
 		if (strcmp("IPv4.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
-					service_dbus_name, "net.connman.Service",
+					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
 					"IPv4.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv4, val);
 
 		} else if (strcmp("IPv6.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
-					service_dbus_name, "net.connman.Service",
+					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
 					"IPv6.Configuration", DBUS_TYPE_STRING,
 					config_append_ipv6, val);
 
 		} else if (strcmp("Proxy.Configuration", key) == 0) {
 			res = dbus_set_property_dict(connection,
-					service_dbus_name, "net.connman.Service",
+					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
 					"Proxy.Configuration", DBUS_TYPE_STRING,
 					config_append_proxy, val);
@@ -390,7 +390,7 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 				dbus_bool = FALSE;
 
 			res = dbus_set_property(connection, service_dbus_name,
-					"net.connman.Service", call_return_list_free,
+					key_service_interface, call_return_list_free,
 					dyn_service_name, "AutoConnect",
 					DBUS_TYPE_BOOLEAN, &dbus_bool);
 
@@ -410,7 +410,7 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 
 		if (simple_service_conf != NULL) {
 			res = dbus_set_property_array(connection,
-					service_dbus_name, "net.connman.Service",
+					service_dbus_name, key_service_interface,
 					call_return_list_free,
 					dyn_service_name,
 					simple_service_conf, DBUS_TYPE_STRING,
@@ -431,7 +431,7 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
  * service. It will "forward" the signal in the signal callback with the
  * following format:
  *	{
- *		key_dbus_json_signal_key: "signal name string",
+ *		key_signal: "signal name string",
  *		key_command_interface: "interface string",
  *		key_command_path: "path string",
  *		key_command_data: { data of the signal }
@@ -451,7 +451,7 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 	if (strncmp(interface, "net.connman.", 12) != 0)
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
-	if (!strcmp(interface, "net.connman.Agent") ||
+	if (!strcmp(interface, key_agent_interface) ||
 			!strcmp(interface, "net.connman.Session") ||
 			!strcmp(interface, "net.connman.Notification"))
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -464,29 +464,29 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 	if (path && *path != '\0')
 		path++;
 
-	if (dbus_message_is_signal(message, "net.connman.Manager",
+	if (dbus_message_is_signal(message, key_manager_interface,
 				"ServicesChanged")) {
 		sig_name = json_object_new_string("ServicesChanged");
 
-	} else if (dbus_message_is_signal(message, "net.connman.Manager",
+	} else if (dbus_message_is_signal(message, key_manager_interface,
 				"PropertyChanged")) {
 		sig_name = json_object_new_string("PropertyChanged");
 
-	} else if (dbus_message_is_signal(message, "net.connman.Manager",
+	} else if (dbus_message_is_signal(message, key_manager_interface,
 				"TechnologyAdded")) {
 		path = dbus_message_get_member(message);
 		sig_name = json_object_new_string("TechnologyAdded");
 
-	} else if (dbus_message_is_signal(message, "net.connman.Manager",
+	} else if (dbus_message_is_signal(message, key_manager_interface,
 				"TechnologyRemoved")) {
 		path = dbus_message_get_member(message);
 		sig_name = json_object_new_string("TechnologyRemoved");
 
-	} else if (dbus_message_is_signal(message, "net.connman.Service",
+	} else if (dbus_message_is_signal(message, key_service_interface,
 				"PropertyChanged")) {
 		sig_name = json_object_new_string("PropertyChanged");
 
-	} else if (dbus_message_is_signal(message, "net.connman.Technology",
+	} else if (dbus_message_is_signal(message, key_technology_interface,
 				"PropertyChanged")) {
 		sig_name = json_object_new_string("PropertyChanged");
 
@@ -503,7 +503,7 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 			json_object_new_string(path));
 	json_object_object_add(res, key_command_data, dbus_to_json(&iter));
 
-	json_object_object_add(res, key_dbus_json_signal_key, sig_name);
+	json_object_object_add(res, key_signal, sig_name);
 	json_object_get(res);
 
 	commands_signal(res);

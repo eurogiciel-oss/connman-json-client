@@ -62,8 +62,8 @@ void report_error_return(struct json_object *retry, struct agent_data *request);
 /*
  * Format the agent error:
  {
- 	key_dbus_json_agent_error_key: error,
- 	key_service: service
+	key_agent_error: error,
+	key_service: service
  }
 */
 static struct json_object* format_agent_error(const char *error,
@@ -72,7 +72,7 @@ static struct json_object* format_agent_error(const char *error,
 	struct json_object *res;
 
 	res = json_object_new_object();
-	json_object_object_add(res, key_dbus_json_agent_error_key,
+	json_object_object_add(res, key_agent_error,
 			json_object_new_string(error));
 	json_object_object_add(res, key_service,
 			json_object_new_string(service));
@@ -103,9 +103,9 @@ static void format_agent_with_callback(struct json_object *jerror,
  * @param data Can be NULL, in that case the attribute key_agent_msg_data won't
  * be set.
  {
- 	key_dbus_json_agent_msg_key: msg,
- 	key_service: service,
- 	key_agent_msg_data: { data }
+	key_agent_msg: msg,
+	key_service: service,
+	key_agent_msg_data: { data }
  }
 */
 static struct json_object* format_agent_msg(const char *msg,
@@ -115,7 +115,7 @@ static struct json_object* format_agent_msg(const char *msg,
 
 	res = json_object_new_object();
 
-	json_object_object_add(res, key_dbus_json_agent_msg_key,
+	json_object_object_add(res, key_agent_msg,
 			json_object_new_string(msg));
 	json_object_object_add(res, key_service,
 			json_object_new_string(service));
@@ -368,7 +368,7 @@ void agent_unregister(DBusConnection *connection, void *user_data)
 	}
 
 	msg = dbus_message_new_method_call(key_connman_service, key_connman_path,
-			"net.connman.Manager", "UnregisterAgent");
+			key_manager_interface, "UnregisterAgent");
 
 	if (!msg)
 		return;
@@ -444,7 +444,7 @@ int agent_register(DBusConnection *connection)
 		return -ENOMEM;
 
 	msg = dbus_message_new_method_call(key_connman_service, key_connman_path,
-			"net.connman.Manager", "RegisterAgent");
+			key_manager_interface, "RegisterAgent");
 
 	if (!msg)
 		return -ENOMEM;

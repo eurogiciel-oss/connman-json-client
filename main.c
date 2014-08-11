@@ -611,7 +611,7 @@ static void action_on_agent_msg(struct json_object *jobj)
 	int i;
 
 	assert(!popup_exists());
-	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &request);
+	json_object_object_get_ex(jobj, key_agent_msg, &request);
 	json_object_object_get_ex(jobj, key_agent_msg_data, &data);
 	json_object_object_get_ex(jobj, key_service, &service);
 	request_str = json_object_get_string(request);
@@ -650,10 +650,10 @@ static void action_on_agent_msg(struct json_object *jobj)
  * Create a popup from an agent error message. Often asking to retry.
  * @param jobj the agent error e.g.:
  {
- 	key_dbus_json_agent_error_key: "invalid-key",
- 	key_service: "wifi_XXXXXXXXXXXX_YYYYYYYYYYYYYY_managed_psk",
- 	key_agent_error_message: "Retry ?",
- 	key_agent_error_callback: "report_error_return"
+	key_agent_error: "invalid-key",
+	key_service: "wifi_XXXXXXXXXXXX_YYYYYYYYYYYYYY_managed_psk",
+	key_agent_error_message: "Retry ?",
+	key_agent_error_callback: "report_error_return"
  }
  */
 static void action_on_agent_error(struct json_object *jobj)
@@ -664,7 +664,7 @@ static void action_on_agent_error(struct json_object *jobj)
 	struct popup_actions *popup_btn_no, *popup_btn_yes;
 
 	assert(!popup_exists());
-	json_object_object_get_ex(jobj, key_dbus_json_agent_error_key, &tmp);
+	json_object_object_get_ex(jobj, key_agent_error, &tmp);
 	error_msg_str = json_object_get_string(tmp);
 	json_object_object_get_ex(jobj, key_service, &tmp);
 	service_str = json_object_get_string(tmp);
@@ -694,9 +694,9 @@ static void action_on_agent_error(struct json_object *jobj)
  * Dispatch the callback data to the appropriate functions based on the presence
  * of the attributes in jobj:
  *	- key_command
- *	- key_dbus_json_signal_key
- *	- key_dbus_json_agent_msg_key
- *	- key_dbus_json_agent_error_key
+ *	- key_signal
+ *	- key_agent_msg
+ *	- key_agent_error
  *	- key_return_force_refresh
  * @param status the status code of this callback, status < 0 is an error
  * @param jobj see above
@@ -707,7 +707,7 @@ static void main_callback(int status, struct json_object *jobj)
 			*return_user_data, *error;
 	const char *error_str;
 
-	json_object_object_get_ex(jobj, key_dbus_json_error_key, &error);
+	json_object_object_get_ex(jobj, key_error, &error);
 	error_str = json_object_get_string(error);
 
 	if (status < 0) {
@@ -717,9 +717,9 @@ static void main_callback(int status, struct json_object *jobj)
 
 	/* get the main object items */
 	json_object_object_get_ex(jobj, key_command, &cmd_tmp);
-	json_object_object_get_ex(jobj, key_dbus_json_signal_key, &signal);
-	json_object_object_get_ex(jobj, key_dbus_json_agent_msg_key, &agent_msg);
-	json_object_object_get_ex(jobj, key_dbus_json_agent_error_key, &agent_error);
+	json_object_object_get_ex(jobj, key_signal, &signal);
+	json_object_object_get_ex(jobj, key_agent_msg, &agent_msg);
+	json_object_object_get_ex(jobj, key_agent_error, &agent_error);
 	json_object_object_get_ex(jobj, key_return_force_refresh, &return_user_data);
 
 	if (cmd_tmp)

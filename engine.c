@@ -241,7 +241,7 @@ static void engine_commands_cb(struct json_object *data, json_bool is_error)
 /*
  * Forward callbacks from the agent.
  * We only support a single agent request at the time. If an agent is already at
- * work, an error callback is emitted with the key_dbus_json_agent_error_key.
+ * work, an error callback is emitted with the key_agent_error.
  */
 static void engine_agent_cb(struct json_object *data, struct agent_data *request)
 {
@@ -249,7 +249,7 @@ static void engine_agent_cb(struct json_object *data, struct agent_data *request
 
 	if (agent_data_cache != NULL) {
 		res = json_object_new_object();
-		json_object_object_add(res, key_dbus_json_agent_error_key,
+		json_object_object_add(res, key_agent_error,
 				json_object_new_string("Already handling an "
 				"agent request"));
 		engine_callback(-ENOMEM, res);
@@ -747,7 +747,7 @@ static void engine_commands_sig(struct json_object *jobj)
 	assert(interface_str != NULL);
 	json_object_object_get_ex(jobj, key_command_data, &data);
 	json_object_object_get_ex(jobj, key_command_path, &path);
-	json_object_object_get_ex(jobj, key_dbus_json_signal_key, &sig_name);
+	json_object_object_get_ex(jobj, key_signal, &sig_name);
 	sig_name_str = json_object_get_string(sig_name);
 
 	if (strcmp(interface_str, "Service") == 0)
