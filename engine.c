@@ -190,6 +190,16 @@ static void better_ipv6_conf(struct json_object *serv_dict)
 }
 
 /*
+ * Apply the functions above to an service dictionary.
+ */
+static void change_weird_conf(struct json_object *serv_dict)
+{
+	better_proxy_conf(serv_dict);
+	better_ipv4_conf(serv_dict);
+	better_ipv6_conf(serv_dict);
+}
+
+/*
  * Apply the functions above to a list of services (structured like the global
  * var).
  */
@@ -202,9 +212,7 @@ static void change_weird_conf_array(struct json_object *serv_array)
 		sub_array = json_object_array_get_idx(serv_array, i);
 		assert(sub_array != NULL);
 		serv_dict = json_object_array_get_idx(sub_array, 1);
-		better_proxy_conf(serv_dict);
-		better_ipv4_conf(serv_dict);
-		better_ipv6_conf(serv_dict);
+		change_weird_conf(serv_dict);
 	}
 }
 
@@ -790,7 +798,7 @@ static void react_to_sig_service(struct json_object *interface,
 		json_object_object_add(serv_dict, key, val);
 	}
 
-	change_weird_conf_array(services);
+	change_weird_conf(serv_dict);
 }
 
 /*
@@ -855,8 +863,6 @@ static void replace_service_in_services(const char *serv_name,
 		json_object_array_add(tmp, json_object_get(serv_dict));
 		json_object_array_add(services, tmp);
 	}
-
-	change_weird_conf_array(services);
 }
 
 /*
@@ -892,6 +898,7 @@ static void react_to_sig_manager(struct json_object *interface,
 		for (i = 0; i < len; i++) {
 			sub_array = json_object_array_get_idx(serv_to_add, i);
 			serv_dict = json_object_array_get_idx(sub_array, 1);
+			change_weird_conf(serv_dict);
 
 			// if the service have been "modified"
 			if (json_object_array_length(serv_dict)) {

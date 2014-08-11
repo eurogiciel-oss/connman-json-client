@@ -171,22 +171,25 @@ static void get_help_window()
 
 		case CONTEXT_SERVICE_CONFIG:
 			msg = " This view list the connection/service settings.\n"
-				" You can modify underlined settings. Some settings require arrays of strings. Those have the following format: '[ \"string\" ]'.\n"
+				" You can modify underlined settings. Some settings require arrays of strings. Those have the following format: '[ \"string\", ... ]'.\n"
 				" * 'AutoConnect' can be 'true' or 'false'\n"
 				" * 'Nameservers.Configuration', 'Timeservers.Configuration' and 'Domains.Configuration' must be an array of strings (IPs, domains...).\n"
 				" * 'Proxy.Configuration':\n"
 				"\t* 'Method' one of 'direct', 'auto' or 'manual'\n"
 				"\t* 'URL' the url\n"
-				"\t* 'Servers' and 'Excludes' are array of strings\n"
+				"\t* 'Servers' and 'Excludes' are arrays of strings\n"
 				" * 'IPv4' 'Method' one of 'dhcp', 'manual' and 'off'.\n"
-				" * 'IPv6' 'Method' one of 'auto', 'manual', '6to4' and 'off'.";
+				" * 'IPv6' 'Method' one of 'auto', 'manual', '6to4' and 'off'.\n\n"
+				" * Press 'F5' to force refresh\n"
+				" * Press 'F7' to submit changes\n"
+				" * Press '^C' to quit";
 			break;
 
 		case CONTEXT_SERVICES:
 			msg = " This view list services the technology can connect to.\n"
 				" * Press 'Return'/'Enter' to connect\n"
 				" * Press 'F5' to force a refresh\n"
-				" * Press 'F6' to force a rescan for the technology (all technologies don't support this)\n"
+				" * Press 'F6' to force a rescan for the technology (some technologies don't support this)\n"
 				" * Press '^C' to quit";
 			break;
 	}
@@ -418,20 +421,21 @@ static void action_on_cmd_callback(struct json_object *jobj)
  */
 static void action_on_signal(struct json_object *jobj)
 {
-	struct json_object *sig_path, *sig_data;
+	struct json_object *sig_path, *sig_data, *sig_name;
 	json_bool tmp_bool;
 	bool is_tech_removed, is_current_tech, got_connected;
 	const char *tmp_str;
 
 	json_object_object_get_ex(jobj, key_command_path, &sig_path);
 	json_object_object_get_ex(jobj, key_command_data, &sig_data);
+	json_object_object_get_ex(jobj, key_signal, &sig_name);
 
-	is_tech_removed = strncmp("TechnologyRemoved", json_object_get_string(sig_path), 50) == 0;
+	is_tech_removed = strncmp("TechnologyRemoved", json_object_get_string(sig_name), 50) == 0;
 
 	if (context.tech->dbus_name == NULL)
 		is_current_tech = false;
 	else
-		is_current_tech = strncmp(context.tech->dbus_name, json_object_get_string(sig_data), 256) == 0;
+		is_current_tech = strncmp(context.tech->dbus_name, json_object_get_string(sig_path), 256) == 0;
 
 	if (is_tech_removed && is_current_tech)
 		exec_back();
