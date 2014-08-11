@@ -6,7 +6,7 @@ configure
 config.status
 Makefile
 Makefile.in
-connman_json
+connman_ncurses
 .deps/
 main_simple_commands
 test_json_utils

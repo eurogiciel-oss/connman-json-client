@@ -20,8 +20,8 @@
 #ifndef __CONNMAN_POPUP_H
 #define __CONNMAN_POPUP_H
 
-#include <ncurses/form.h>
-#include <ncurses/menu.h>
+#include <form.h>
+#include <menu.h>
 
 #ifdef __cplusplus
 extern "C" {

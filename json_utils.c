@@ -21,7 +21,7 @@
 #include <config.h>
 #endif
 
-#include <json/json.h>
+#include <json.h>
 #include <sys/types.h>
 #include <regex.h>
 #include <assert.h>

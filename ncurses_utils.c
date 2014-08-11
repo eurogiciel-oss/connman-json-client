@@ -25,8 +25,8 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
-#include <ncurses/form.h>
-#include <ncurses/menu.h>
+#include <form.h>
+#include <menu.h>
 
 #include "ncurses_utils.h"
 

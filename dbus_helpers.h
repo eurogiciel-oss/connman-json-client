@@ -21,7 +21,7 @@
 #define __CONNMAN_DBUS_HELPERS_H
 
 #include <dbus/dbus.h>
-#include <json/json.h>
+#include <json.h>
 
 #define TIMEOUT           60000
 

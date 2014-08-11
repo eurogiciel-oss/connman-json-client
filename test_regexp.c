@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include <json/json.h>
+#include <json.h>
 
 #include "json_utils.h"
 

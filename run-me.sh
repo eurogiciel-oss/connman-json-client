@@ -1,6 +1,6 @@
 #!/bin/bash
 
-autoreconf -i
+autoreconf -i -f
 
 ./configure --disable-optimization --enable-debug #--disable-silent-rules
 

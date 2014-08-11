@@ -1,9 +1,9 @@
 AM_MAKEFLAGS = --no-print-directory
-AM_CFLAGS = @DBUS_CFLAGS@ -Wall -Werror -pedantic
+AM_CFLAGS = @DBUS_CFLAGS@ @JSON_CFLAGS@ -Wall -Werror
 
-noinst_PROGRAMS = connman_json
+noinst_PROGRAMS = connman_ncurses
 
-connman_json_SOURCES = dbus_helpers.h dbus_helpers.c \
+connman_ncurses_SOURCES = dbus_helpers.h dbus_helpers.c \
 				  commands.h commands.c \
 				  agent.h agent.c \
 				  dbus_json.h dbus_json.c \
@@ -20,5 +20,5 @@ connman_json_SOURCES = dbus_helpers.h dbus_helpers.c \
 				  main.c
 
 
-connman_json_LDADD = @DBUS_LIBS@ -ldl -ljson -lform -lmenu -lncurses
-connman_json_LDFLAGS = -Wl,--warn-common
+connman_ncurses_LDADD = @DBUS_LIBS@ @JSON_LIBS@ -ldl -lform -lmenu -lncurses
+connman_ncurses_LDFLAGS = -Wl,--warn-common

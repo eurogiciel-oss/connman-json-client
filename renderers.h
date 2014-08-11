@@ -21,8 +21,8 @@
 #define __CONNMAN_RENDERERS_H
 
 #include <ncurses.h>
-#include <ncurses/form.h>
-#include <ncurses/menu.h>
+#include <form.h>
+#include <menu.h>
 
 #define RENDERERS_STRING_MAX_LEN 100
 

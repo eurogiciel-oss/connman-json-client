@@ -21,7 +21,7 @@
 #define __CONNMAN_COMMANDS_H
 
 #include <dbus/dbus.h>
-#include <json/json.h>
+#include <json.h>
 
 #define _POSIX_C_SOURCE 200809L
 

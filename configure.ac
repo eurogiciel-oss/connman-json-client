@@ -43,9 +43,9 @@ AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
 
 AC_CONFIG_HEADERS([config.h:config.h.in])
 
-PKG_CHECK_MODULES([json], [json-c],,
-	[PKG_CHECK_MODULES([json], [json],,
-		[PKG_CHECK_MODULES([json], [json0],,
+PKG_CHECK_MODULES(JSON, [json-c],,
+	[PKG_CHECK_MODULES(JSON, [json],,
+		[PKG_CHECK_MODULES(JSON, [json0],,
 			[AC_MSG_WARN([No pkg-config for json-c (aka libjson0, libjson)])])
 		])
 	])
@@ -60,18 +60,18 @@ PKG_CHECK_MODULES(DBUS, dbus-1 >= 1.4, dummy=yes,
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
-AC_CHECK_HEADER(ncurses/ncurses.h, HAVE_NCURSES_H=1)
+
+AC_CHECK_HEADER(ncurses/ncurses.h, [HAVE_NCURSES_H=1 CFLAGS="$CFLAGS -I/usr/include/ncurses"])
 AC_CHECK_LIB(ncurses, initscr, HAVE_LIBNCURSES=1)
 AC_CHECK_LIB(tinfo, cbreak, [LIBS="-ltinfo $LIBS"])
-if test -n "$HAVE_NCURSES_H" -a -n "$HAVE_LIBNCURSES";  then
+if test -n "$HAVE_NCURSES_H" -a -n "$HAVE_LIBNCURSES"; then
 LIBS="-lncurses $LIBS"
 else
 PKG_CHECK_MODULES(NCURSESW, ncurses, [
-		LIBS="$NCURSES_LIBS $LIBS"
-		CFLAGS="$NCURSES_CFLAGS $CFLAGS"], [
-		echo -e "Error: ncurses is required." exit 1])
+LIBS="$NCURSES_LIBS $LIBS"
+CFLAGS="$NCURSES_CFLAGS $CFLAGS"], [
+echo -e "Error: ncurses is required." exit 1])
 fi
-
 
 AC_CHECK_HEADERS([ assert.h config.h ctype.h errno.h poll.h regex.h signal.h stdarg.h stdbool.h stdio.h stdlib.h string.h sys/types.h unistd.h])
 

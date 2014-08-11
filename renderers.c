@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <json/json.h>
+#include <json.h>
 
 #include "ncurses_utils.h"
 #include "json_utils.h"

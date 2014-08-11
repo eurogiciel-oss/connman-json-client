@@ -22,7 +22,7 @@
 #endif
 
 #include <dbus/dbus.h>
-#include <json/json.h>
+#include <json.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <stdio.h>

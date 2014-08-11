@@ -30,8 +30,8 @@
 #include <dbus/dbus.h>
 #include <signal.h>
 #include <ncurses.h>
-#include <ncurses/form.h>
-#include <ncurses/menu.h>
+#include <form.h>
+#include <menu.h>
 
 #include "engine.h"
 #include "loop.h"
