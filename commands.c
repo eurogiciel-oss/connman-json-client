@@ -182,6 +182,23 @@ int __cmd_scan(const char *tech_dbus_name)
 }
 
 /*
+ * Toogle the Powered state of the technology.
+ * @param tech_dbus_name the dbus name of the technology
+ * @param set_power_to the new power state to set
+ */
+int __cmd_toogle_tech_power(const char *tech_dbus_name, bool set_power_to)
+{
+	dbus_bool_t dbus_bool;
+
+	dbus_bool = set_power_to ? TRUE : FALSE;
+
+	return dbus_set_property(connection, tech_dbus_name,
+			"net.connman.Technology", call_return_list_free,
+			strdup(tech_dbus_name), "Powered",
+			DBUS_TYPE_BOOLEAN, &dbus_bool);
+}
+
+/*
  * Append the IPv4 json object to iter.
  * @param iter valid dbus message iteration
  * @param jobj IPv4 settings

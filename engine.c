@@ -622,6 +622,30 @@ static int config_service(struct json_object *jobj)
 }
 
 /*
+ * Engine proxy for toogle power in commands.
+ * @param jobj json object with a valid dbus technology name
+ */
+static int toogle_power_technology(struct json_object *jobj)
+{
+	struct json_object *tech_array, *tech_dict, *tmp;
+	const char *tech_dbus_name;
+	bool is_tech_powered;
+
+	json_object_object_get_ex(jobj, key_technology, &tmp);
+	tech_dbus_name = json_object_get_string(tmp);
+	tech_array = get_technology(tech_dbus_name);
+
+	if (tech_array == NULL)
+		return -EINVAL;
+
+	tech_dict = json_object_array_get_idx(tech_array, 1);
+	json_object_object_get_ex(tech_dict, "Powered", &tmp);
+	is_tech_powered = json_object_get_boolean(tmp) == TRUE ? true : false;
+
+	return __cmd_toogle_tech_power(tech_dbus_name, !is_tech_powered);
+}
+
+/*
  * This is the list of commands engine_query will answer to.
  * If you want to use a json object instead of a regex for data verification,
  * set trusted_is_json_string to false and add a filter in init_cmd_table.
@@ -656,6 +680,8 @@ static struct {
 	{ key_engine_scan_tech, scan_technology, true, {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ key_engine_config_service, config_service, false, { "" } },
+	{ key_engine_toogle_tech_power, toogle_power_technology, true, {
+		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ NULL, }, // this is a sentinel
 };
 
