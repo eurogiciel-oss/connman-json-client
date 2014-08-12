@@ -165,6 +165,7 @@ static void get_help_window()
 			msg = " This view list technologies,\n"
 				" * Press 'Return'/'Enter' for details on a technology\n"
 				" * Press 'd' to disconnect a technology\n"
+				" * Press 'p' to toogle a technology's power state\n"
 				" * Press 'F5' to force refresh\n"
 				" * Press '^C' to quit";
 			break;
@@ -841,6 +842,27 @@ static void disconnect_of_service(struct userptr_data *data)
 }
 
 /*
+ * Asks to toogle the power state of the technology data->dbus_name.
+ * @param data the user pointer of a technology item
+ */
+static void toogle_power_tech(struct userptr_data *data)
+{
+	struct json_object *cmd, *tmp;
+
+	cmd = json_object_new_object();
+	tmp = json_object_new_object();
+
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_toogle_tech_power));
+	json_object_object_add(tmp, key_technology,
+			json_object_new_string(data->dbus_name));
+	json_object_object_add(cmd, key_command_data, tmp);
+
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+}
+
+/*
  * Asks for a rescan of the technology. Not all technologies support this.
  * @param tech_dbus_name the technology to rescan
  */
@@ -1017,10 +1039,16 @@ static void exec_action_context_home(int ch)
 			menu_driver(my_menu, REQ_DOWN_ITEM);
 			break;
 
-		case 100: // 'd'
+		case 'd':
 			item = current_item(my_menu);
 			disconnect_of_service(item_userptr(item));
 			print_info_in_footer(false, "Disconnecting...");
+			break;
+
+		case 'p':
+			item = current_item(my_menu);
+			toogle_power_tech(item_userptr(item));
+			print_info_in_footer(false, "Toogling power...");
 			break;
 
 		case KEY_ENTER:
