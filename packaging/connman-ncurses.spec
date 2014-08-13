@@ -10,7 +10,7 @@ BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  libjson-devel
 Requires:       connman
-Requires:       json-c
+Requires:       libjson
 
 %description
 Ncurses interface for connman dbus service.
@@ -25,7 +25,7 @@ autoreconf -i
 make %{?_smp_mflags}
 
 %install
-install -Dm733 connman_ncurses %{buildroot}/%{_bindir}/%{name}
+install -Dm755 connman_ncurses %{buildroot}/%{_bindir}/%{name}
 
 %files
 %{_bindir}/%{name}

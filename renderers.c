@@ -25,6 +25,7 @@
 #include <string.h>
 #include <assert.h>
 #include <json.h>
+#include <errno.h>
 
 #include "ncurses_utils.h"
 #include "json_utils.h"
@@ -539,7 +540,7 @@ static void renderers_service_config(struct json_object *tech_array,
 
 	str_field[0] = '\0';
 
-	for (k = 0; keys[k] != NULL; k++) {
+	for (k = 0; keys[k] != NULL && i < nb_fields; k++) {
 		if (json_object_object_get_ex(serv_dict, keys[k], &tmp_val) == TRUE) {
 			tmp = json_object_new_object();
 			json_object_object_add(tmp, keys[k], json_object_get(tmp_val));
@@ -552,7 +553,7 @@ static void renderers_service_config(struct json_object *tech_array,
 	data->dbus_name = strdup(serv_dbus_name);
 	data->pretty_name = NULL;
 	set_field_userptr(main_fields[0], data);
-	main_fields[nb_fields] = NULL;
+	main_fields[i] = NULL;
 
 	main_form = new_form(main_fields);
 	assert(main_form != NULL);
@@ -826,7 +827,7 @@ void __renderers_free_service_config(void)
 
 	unpost_form(main_form);
 
-	for (i = 0; i < nb_fields; i++) {
+	for (i = 0; i < nb_fields && main_fields[i] != NULL; i++) {
 		tmp = field_userptr(main_fields[i]);
 
 		if (tmp) {
