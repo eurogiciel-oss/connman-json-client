@@ -66,9 +66,10 @@ void print_info_in_footer2(bool is_error, const char* msg, ...)
 
 void refresh_home_msg(void)
 {
-	print_info_in_footer(false, "'d' to disconnect, 'Return' for"
-			" details, 'F5' to force refresh");
-	print_info_in_footer2(false, "^C to quit, 'F1' for help");
+	print_info_in_footer(false, "'d' to disconnect, 'p' to toogle Powered"
+			", 'o' to toogle OfflineMode");
+	print_info_in_footer2(false, "'Return' for details, 'F5' to force "
+			"refresh, ^C to quit, 'F1' for help");
 }
 
 void refresh_services_msg(void)
