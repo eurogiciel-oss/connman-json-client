@@ -1063,6 +1063,13 @@ int engine_init(void)
 		return res;
 
 	loop_run(false);
+
+	if (state && json_object_object_get_ex(state, key_error, NULL) == TRUE) {
+		printf("[-] Couldn't get data from connman dbus service."
+				" Check if connmand is running.\n");
+		return -1;
+	}
+
 	init_status = INIT_TECHNOLOGIES;
 
 	if ((res = get_technologies(NULL)) != -EINPROGRESS)
