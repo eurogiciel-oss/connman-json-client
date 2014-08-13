@@ -199,6 +199,21 @@ int __cmd_toogle_tech_power(const char *tech_dbus_name, bool set_power_to)
 }
 
 /*
+ * Toogle the OfflineMode attribute of Manager.
+ * @param set_offline_to the new offline mode to set
+ */
+int __cmd_toogle_offline_mode(bool set_offline_to)
+{
+	dbus_bool_t dbus_bool;
+
+	dbus_bool = set_offline_to ? TRUE : FALSE;
+
+	return dbus_set_property(connection, "/",
+			"net.connman.Manager", call_return_list, NULL,
+			"OfflineMode", DBUS_TYPE_BOOLEAN, &dbus_bool);
+}
+
+/*
  * Append the IPv4 json object to iter.
  * @param iter valid dbus message iteration
  * @param jobj IPv4 settings

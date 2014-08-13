@@ -166,6 +166,7 @@ static void get_help_window()
 				" * Press 'Return'/'Enter' for details on a technology\n"
 				" * Press 'd' to disconnect a technology\n"
 				" * Press 'p' to toogle a technology's power state\n"
+				" * Press 'o' to toogle the OfflineMode (power on/off all technologies)\n"
 				" * Press 'F5' to force refresh\n"
 				" * Press '^C' to quit";
 			break;
@@ -863,6 +864,21 @@ static void toogle_power_tech(struct userptr_data *data)
 }
 
 /*
+ * Asks to toogle the OfflineMode attribute of the Manager.
+ */
+static void toogle_offline_mode()
+{
+	struct json_object *cmd;
+
+	cmd = json_object_new_object();
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_toogle_offline_mode));
+
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+}
+
+/*
  * Asks for a rescan of the technology. Not all technologies support this.
  * @param tech_dbus_name the technology to rescan
  */
@@ -1051,6 +1067,11 @@ static void exec_action_context_home(int ch)
 			print_info_in_footer(false, "Toogling power...");
 			break;
 
+		case 'o':
+			toogle_offline_mode();
+			print_info_in_footer(false, "Toogling OfflineMode...");
+			break;
+
 		case KEY_ENTER:
 		case 10:
 			item = current_item(main_menu);
@@ -1110,6 +1131,9 @@ static void exec_action_context_service_config(int ch)
 			break;
 
 		case KEY_F(7):
+			// Fix the current item buffer
+			form_driver(main_form, REQ_PREV_FIELD);
+			form_driver(main_form, REQ_NEXT_FIELD);
 			// The dbus name of the service is stored in the first
 			// item (it's a non active one). The active items have a
 			// tagging system to keep the pointer's position on the
@@ -1278,7 +1302,7 @@ int main(void)
 	box(win_body, 0 ,0);
 	keypad(win_body, TRUE);
 
-	win_header = newwin(2, COLS, 0, 0);
+	win_header = newwin(1, COLS, 0, 0);
 	win_footer = newwin(2, COLS, LINES-2, 0);
 
 	// Print all windows, according to the man it's more efficient than 3

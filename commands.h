@@ -53,6 +53,8 @@ int __cmd_config_service(const char *service_name, struct json_object *options);
 
 int __cmd_toogle_tech_power(const char *tech_dbus_name, bool set_power_to);
 
+int __cmd_toogle_offline_mode(bool set_offline_to);
+
 #ifdef __cplusplus
 }
 #endif

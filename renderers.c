@@ -237,7 +237,7 @@ static void renderers_state(struct json_object *jobj)
 
 	mvwprintw(win_header, 0, 1, "Connman ncurses UI");
 	// 38 = len(string) + 1
-	mvwprintw(win_header, 0, COLS-38, "State: %-6s%-6sOfflineMode: %-5s",
+	mvwprintw(win_header, 0, COLS-38, "State: %-6s%-6sOfflineMode: %-5s\n",
 			state_str, "", json_object_get_string(offline_mode));
 	wrefresh(win_header);
 }
