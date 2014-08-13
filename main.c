@@ -165,8 +165,8 @@ static void get_help_window()
 			msg = " This view list technologies,\n"
 				" * Press 'Return'/'Enter' for details on a technology\n"
 				" * Press 'd' to disconnect a technology\n"
-				" * Press 'p' to toogle a technology's power state\n"
-				" * Press 'o' to toogle the OfflineMode (power on/off all technologies)\n"
+				" * Press 'p' to toggle a technology's power state\n"
+				" * Press 'o' to toggle the OfflineMode (power on/off all technologies)\n"
 				" * Press 'F5' to force refresh\n"
 				" * Press '^C' to quit";
 			break;
@@ -843,10 +843,10 @@ static void disconnect_of_service(struct userptr_data *data)
 }
 
 /*
- * Asks to toogle the power state of the technology data->dbus_name.
+ * Asks to toggle the power state of the technology data->dbus_name.
  * @param data the user pointer of a technology item
  */
-static void toogle_power_tech(struct userptr_data *data)
+static void toggle_power_tech(struct userptr_data *data)
 {
 	struct json_object *cmd, *tmp;
 
@@ -854,7 +854,7 @@ static void toogle_power_tech(struct userptr_data *data)
 	tmp = json_object_new_object();
 
 	json_object_object_add(cmd, key_command,
-			json_object_new_string(key_engine_toogle_tech_power));
+			json_object_new_string(key_engine_toggle_tech_power));
 	json_object_object_add(tmp, key_technology,
 			json_object_new_string(data->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
@@ -864,15 +864,15 @@ static void toogle_power_tech(struct userptr_data *data)
 }
 
 /*
- * Asks to toogle the OfflineMode attribute of the Manager.
+ * Asks to toggle the OfflineMode attribute of the Manager.
  */
-static void toogle_offline_mode()
+static void toggle_offline_mode()
 {
 	struct json_object *cmd;
 
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
-			json_object_new_string(key_engine_toogle_offline_mode));
+			json_object_new_string(key_engine_toggle_offline_mode));
 
 	if (engine_query(cmd) == -EINVAL)
 		report_error();
@@ -1063,12 +1063,12 @@ static void exec_action_context_home(int ch)
 
 		case 'p':
 			item = current_item(main_menu);
-			toogle_power_tech(item_userptr(item));
+			toggle_power_tech(item_userptr(item));
 			print_info_in_footer(false, "Toogling power...");
 			break;
 
 		case 'o':
-			toogle_offline_mode();
+			toggle_offline_mode();
 			print_info_in_footer(false, "Toogling OfflineMode...");
 			break;
 

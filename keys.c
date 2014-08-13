@@ -40,8 +40,8 @@ const char key_engine_agent_response[] = "agent_response";
 const char key_engine_agent_retry[] = "agent_retry";
 const char key_engine_scan_tech[] = "scan_tech";
 const char key_engine_config_service[] = "config_service";
-const char key_engine_toogle_tech_power[] = "toogle_tech_power";
-const char key_engine_toogle_offline_mode[] = "toogle_offline_mode";
+const char key_engine_toggle_tech_power[] = "toggle_tech_power";
+const char key_engine_toggle_offline_mode[] = "toggle_offline_mode";
 
 const char key_success[] = "OK";
 const char key_error[] = "ERROR";

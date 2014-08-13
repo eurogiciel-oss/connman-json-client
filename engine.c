@@ -630,10 +630,10 @@ static int config_service(struct json_object *jobj)
 }
 
 /*
- * Engine proxy to toogle power in commands.
+ * Engine proxy to toggle power in commands.
  * @param jobj json object with a valid dbus technology name
  */
-static int toogle_power_technology(struct json_object *jobj)
+static int toggle_power_technology(struct json_object *jobj)
 {
 	struct json_object *tech_array, *tech_dict, *tmp;
 	const char *tech_dbus_name;
@@ -650,14 +650,14 @@ static int toogle_power_technology(struct json_object *jobj)
 	json_object_object_get_ex(tech_dict, "Powered", &tmp);
 	is_tech_powered = json_object_get_boolean(tmp) == TRUE ? true : false;
 
-	return __cmd_toogle_tech_power(tech_dbus_name, !is_tech_powered);
+	return __cmd_toggle_tech_power(tech_dbus_name, !is_tech_powered);
 }
 
 /*
- * Engine proxy to toogle OfflineMode in commands.
+ * Engine proxy to toggle OfflineMode in commands.
  * @param jobj not used
  */
-static int toogle_offline_mode(struct json_object *jobj)
+static int toggle_offline_mode(struct json_object *jobj)
 {
 	struct json_object *tmp;
 	bool offline_mode_is_true;
@@ -669,7 +669,7 @@ static int toogle_offline_mode(struct json_object *jobj)
 
 	offline_mode_is_true = json_object_get_boolean(tmp) == TRUE ? true : false;
 
-	return __cmd_toogle_offline_mode(!offline_mode_is_true);
+	return __cmd_toggle_offline_mode(!offline_mode_is_true);
 }
 
 /*
@@ -707,9 +707,9 @@ static struct {
 	{ key_engine_scan_tech, scan_technology, true, {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ key_engine_config_service, config_service, false, { "" } },
-	{ key_engine_toogle_tech_power, toogle_power_technology, true, {
+	{ key_engine_toggle_tech_power, toggle_power_technology, true, {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
-	{ key_engine_toogle_offline_mode, toogle_offline_mode, true, { "" } },
+	{ key_engine_toggle_offline_mode, toggle_offline_mode, true, { "" } },
 	{ NULL, }, // this is a sentinel
 };
 

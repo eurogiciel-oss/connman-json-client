@@ -44,8 +44,8 @@ extern const char key_engine_agent_error_response[];
 extern const char key_engine_agent_retry[];
 extern const char key_engine_scan_tech[];
 extern const char key_engine_config_service[];
-extern const char key_engine_toogle_tech_power[];
-extern const char key_engine_toogle_offline_mode[];
+extern const char key_engine_toggle_tech_power[];
+extern const char key_engine_toggle_offline_mode[];
 
 extern const char key_success[];
 extern const char key_error[];

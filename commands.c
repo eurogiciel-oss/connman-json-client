@@ -186,7 +186,7 @@ int __cmd_scan(const char *tech_dbus_name)
  * @param tech_dbus_name the dbus name of the technology
  * @param set_power_to the new power state to set
  */
-int __cmd_toogle_tech_power(const char *tech_dbus_name, bool set_power_to)
+int __cmd_toggle_tech_power(const char *tech_dbus_name, bool set_power_to)
 {
 	dbus_bool_t dbus_bool;
 
@@ -202,7 +202,7 @@ int __cmd_toogle_tech_power(const char *tech_dbus_name, bool set_power_to)
  * Toogle the OfflineMode attribute of Manager.
  * @param set_offline_to the new offline mode to set
  */
-int __cmd_toogle_offline_mode(bool set_offline_to)
+int __cmd_toggle_offline_mode(bool set_offline_to)
 {
 	dbus_bool_t dbus_bool;
 
