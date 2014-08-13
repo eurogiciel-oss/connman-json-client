@@ -72,17 +72,17 @@ WINDOW *win_header, *win_footer, *win_body, *inner;
 // number of lines in win_body
 int win_body_lines;
 
-// Items (ncurses term), used by my_menu
-ITEM **my_items;
+// Items (ncurses term), used by main_menu
+ITEM **main_items;
 
 // Menu (ncurses term)
-MENU *my_menu;
+MENU *main_menu;
 
-// Field (ncurses term), used by my_form
-FIELD **field;
+// Field (ncurses term), used by main_form
+FIELD **main_fields;
 
 // Form (ncurses term)
-FORM *my_form;
+FORM *main_form;
 
 // Number of pages the form is displayed on (if the window is too small for the
 // form, a scrolling form is created.
@@ -102,7 +102,7 @@ static char *proxy_method_enum[] = { "direct", "manual", "auto", NULL };
 static char str_field[2];
 
 /*
- * This is useful to mark field with a value for repos_cursor
+ * This is useful to mark main_fields with a value for repos_cursor
  */
 static char* get_str_key() {
 	int cur_ch;
@@ -156,8 +156,8 @@ static void renderers_technologies(struct json_object *jobj)
 	struct userptr_data *data;
 
 	nb_items = json_object_array_length(jobj);
-	my_items = malloc(sizeof(ITEM*) * (nb_items+1));
-	assert(my_items != NULL && nb_items > 0);
+	main_items = malloc(sizeof(ITEM*) * (nb_items+1));
+	assert(main_items != NULL && nb_items > 0);
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
@@ -193,22 +193,22 @@ static void renderers_technologies(struct json_object *jobj)
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 		tech_short_name =
 			extract_dbus_short_name(json_object_get_string(dbus_tech_name));
-		my_items[i] = new_item(tech_short_name, desc);
+		main_items[i] = new_item(tech_short_name, desc);
 
 		data = malloc(sizeof(struct userptr_data));
 		assert(data != NULL);
 		data->dbus_name = strdup(json_object_get_string(dbus_tech_name));
 		data->pretty_name = strdup(k_name);
-		set_item_userptr(my_items[i], data);
+		set_item_userptr(main_items[i], data);
 	}
 
-	my_items[nb_items] = NULL;
-	my_menu = new_menu(my_items);
-	set_menu_win(my_menu, win_body);
-	set_menu_sub(my_menu, derwin(win_body, win_body_lines-2, COLS-4, 3, 2));
-	set_menu_mark(my_menu, "");
-	set_menu_format(my_menu, win_body_lines-3, 1);
-	assert(post_menu(my_menu) == E_OK);
+	main_items[nb_items] = NULL;
+	main_menu = new_menu(main_items);
+	set_menu_win(main_menu, win_body);
+	set_menu_sub(main_menu, derwin(win_body, win_body_lines-2, COLS-4, 3, 2));
+	set_menu_mark(main_menu, "");
+	set_menu_format(main_menu, win_body_lines-3, 1);
+	assert(post_menu(main_menu) == E_OK);
 
 	repos_cursor();
 	wnoutrefresh(win_header);
@@ -279,28 +279,28 @@ void __renderers_free_home_page(void)
 	int i;
 	struct userptr_data *data;
 
-	if (!my_menu)
+	if (!main_menu)
 		return;
 
-	unpost_menu(my_menu);
+	unpost_menu(main_menu);
 
 	for (i = 0; i < nb_items; i++) {
-		free((void *) my_items[i]->description.str);
-		free((void *) my_items[i]->name.str);
+		free((void *) main_items[i]->description.str);
+		free((void *) main_items[i]->name.str);
 
-		data = item_userptr(my_items[i]);
+		data = item_userptr(main_items[i]);
 		free((void *) data->dbus_name);
 		free((void *) data->pretty_name);
 		free(data);
 
-		free_item(my_items[i]);
+		free_item(main_items[i]);
 	}
 
-	free_menu(my_menu);
-	free(my_items);
+	free_menu(main_menu);
+	free(main_items);
 	nb_items = 0;
-	my_menu = NULL;
-	my_items = NULL;
+	main_menu = NULL;
+	main_items = NULL;
 }
 
 /*
@@ -390,21 +390,21 @@ static FIELD* render_label(int longest_key_len, const char *label_str)
 /*
  * This sets basic form validation, for example IPv4 Method can be one of
  * ipv4_method_enum.
- * @param pos The index of the field in the global variable
+ * @param pos The index of the main_fields in the global variable
  * @param is_autoconnect Indicate if this is the "AutoConnect" field.
- * @param obj_str The string of the label surrounding field[pos]
+ * @param obj_str The string of the label surrounding main_fields[pos]
  * @param key The string of the current field
  */
 static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str,
 		const char *key)
 {
 	if (is_autoconnect) {
-		set_field_type(field[pos], TYPE_ENUM, true_false_enum, 0, 1);
+		set_field_type(main_fields[pos], TYPE_ENUM, true_false_enum, 0, 1);
 		return;
 	}
 
 	if (strcmp(key, "Privacy") == 0) {
-		set_field_type(field[pos], TYPE_ENUM, ipv6_privacy_enum, 0, 1);
+		set_field_type(main_fields[pos], TYPE_ENUM, ipv6_privacy_enum, 0, 1);
 		return;
 	}
 
@@ -413,17 +413,17 @@ static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str
 		return;
 
 	if (strcmp(obj_str, "IPv4.Configuration") == 0) {
-		set_field_type(field[pos], TYPE_ENUM, ipv4_method_enum, 0, 1);
+		set_field_type(main_fields[pos], TYPE_ENUM, ipv4_method_enum, 0, 1);
 		return;
 	}
 
 	if (strcmp(obj_str, "IPv6.Configuration") == 0) {
-		set_field_type(field[pos], TYPE_ENUM, ipv6_method_enum, 0, 1);
+		set_field_type(main_fields[pos], TYPE_ENUM, ipv6_method_enum, 0, 1);
 		return;
 	}
 
 	if (strcmp(obj_str, "Proxy.Configuration") == 0) {
-		set_field_type(field[pos], TYPE_ENUM, proxy_method_enum, 0, 1);
+		set_field_type(main_fields[pos], TYPE_ENUM, proxy_method_enum, 0, 1);
 		return;
 	}
 }
@@ -434,7 +434,7 @@ static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str
  * To keep the cursor from moving on signal, a string is affected to mark each
  * field. This is used by repos_cursor().
  * @param longest_key_len The longuest length for a label
- * @param pos The index in field[]
+ * @param pos The index in main_fields[]
  * @param jobj The service dictionary
  * @param is_obj_modifiable Use to set the whole object as modifiable (usefull
  *	for IPv4.Configuration for example)
@@ -448,15 +448,15 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 	struct userptr_data *data;
 
 	json_object_object_foreach(jobj, key, val) {
-		field[*pos] = render_label(longest_key_len, key);
-		assert(field[*pos] != NULL);
+		main_fields[*pos] = render_label(longest_key_len, key);
+		assert(main_fields[*pos] != NULL);
 		(*pos)++;
 
 		is_modifiable = string_ends_with_configuration(key);
 		is_modifiable |= is_obj_modifiable;
 
 		if (json_object_get_type(val) == json_type_object) {
-			move_field(field[(*pos)-1], ++cur_y, cur_x);
+			move_field(main_fields[(*pos)-1], ++cur_y, cur_x);
 			cur_y++;
 			render_fields_from_jobj(longest_key_len, pos, val,
 					is_modifiable, key);
@@ -465,35 +465,35 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 			// insert the page delimiter
 			if (cur_y+1 >= win_body_lines-2) {
 				cur_y = 1;
-				set_new_page(field[(*pos)-1], TRUE);
-				move_field(field[(*pos)-1], cur_y, cur_x);
+				set_new_page(main_fields[(*pos)-1], TRUE);
+				move_field(main_fields[(*pos)-1], cur_y, cur_x);
 				nb_pages++;
 			} else if (cur_y+1 >= win_body_lines-3) {
 				cur_y = 1;
-				set_new_page(field[(*pos)-1], TRUE);
-				move_field(field[(*pos)-1], cur_y, cur_x);
+				set_new_page(main_fields[(*pos)-1], TRUE);
+				move_field(main_fields[(*pos)-1], cur_y, cur_x);
 				nb_pages++;
 			}
 
-			field[*pos] = render_field(longest_key_len, val);
-			assert(field[*pos] != NULL);
+			main_fields[*pos] = render_field(longest_key_len, val);
+			assert(main_fields[*pos] != NULL);
 			is_autoconnect = strcmp(key, "AutoConnect") == 0;
 
 			if (is_modifiable || is_autoconnect) {
-				field_opts_on(field[*pos], O_EDIT);
-				field_opts_off(field[*pos], O_BLANK);
-				set_field_back(field[*pos], A_UNDERLINE);
+				field_opts_on(main_fields[*pos], O_EDIT);
+				field_opts_off(main_fields[*pos], O_BLANK);
+				set_field_back(main_fields[*pos], A_UNDERLINE);
 			} else
-				field_opts_off(field[*pos], O_EDIT);
+				field_opts_off(main_fields[*pos], O_EDIT);
 
 			// Specific operations on fields
 			config_fields_type(*pos, is_autoconnect, obj_str, key);
 
-			field_opts_on(field[*pos], O_NULLOK);
+			field_opts_on(main_fields[*pos], O_NULLOK);
 			data = malloc(sizeof(struct userptr_data));
 			data->dbus_name = strdup(get_str_key());
 			data->pretty_name = NULL;
-			set_field_userptr(field[*pos], data);
+			set_field_userptr(main_fields[*pos], data);
 
 			(*pos)++;
 		}
@@ -538,7 +538,7 @@ static void renderers_service_config(struct json_object *tech_array,
 	// We compute how many fields we will need
 	longest_key_len = compute_nb_elems_in_service(serv_dict);
 
-	field = malloc(sizeof(ITEM *) * (nb_fields + 1));
+	main_fields = malloc(sizeof(ITEM *) * (nb_fields + 1));
 	longest_key_len += 4; // For padding
 	i = 0;
 
@@ -556,18 +556,18 @@ static void renderers_service_config(struct json_object *tech_array,
 	data = malloc(sizeof(struct userptr_data));
 	data->dbus_name = strdup(serv_dbus_name);
 	data->pretty_name = NULL;
-	set_field_userptr(field[0], data);
-	field[nb_fields] = NULL;
+	set_field_userptr(main_fields[0], data);
+	main_fields[nb_fields] = NULL;
 
-	my_form = new_form(field);
-	assert(my_form != NULL);
-	set_form_win(my_form, win_body);
+	main_form = new_form(main_fields);
+	assert(main_form != NULL);
+	set_form_win(main_form, win_body);
 	inner = derwin(win_body, win_body_lines-1, COLS-2, 2, 1);
 	box(inner, 0, 0);
 	assert(inner != NULL);
-	set_form_sub(my_form, inner);
+	set_form_sub(main_form, inner);
 
-	post_form(my_form);
+	post_form(main_form);
 	__renderers_services_config_paging();
 	repos_cursor();
 }
@@ -579,7 +579,7 @@ static void renderers_service_config(struct json_object *tech_array,
  */
 void __renderers_services_config_paging(void)
 {
-	if (!my_form)
+	if (!main_form)
 		return;
 
 	if (!nb_pages)
@@ -587,9 +587,9 @@ void __renderers_services_config_paging(void)
 	else
 		mvwprintw(win_body, 1, 2, "Service configuration (page %d/%d, use "
 				"page_up/page_down to change page):",
-				form_page(my_form)+1, my_form->maxpage);
+				form_page(main_form)+1, main_form->maxpage);
 
-	pos_form_cursor(my_form);
+	pos_form_cursor(main_form);
 }
 
 /*
@@ -623,13 +623,13 @@ static void renderers_services_ethernet(struct json_object *jobj)
 
 		dbus_name_str = json_object_get_string(serv_name);
 
-		my_items[i] = new_item(desc, "");
+		main_items[i] = new_item(desc, "");
 
 		data = malloc(sizeof(struct userptr_data));
 		assert(data != NULL);
 		data->dbus_name = strdup(dbus_name_str);
 		data->pretty_name = strdup(name_str);
-		set_item_userptr(my_items[i], data);
+		set_item_userptr(main_items[i], data);
 	}
 }
 
@@ -684,13 +684,13 @@ static void renderers_services_wifi(struct json_object *jobj)
 
 		serv_name_str = json_object_get_string(serv_name);
 
-		my_items[i] = new_item(desc, "");
+		main_items[i] = new_item(desc, "");
 
 		data = malloc(sizeof(struct userptr_data));
 		assert(data != NULL);
 		data->dbus_name = strdup(serv_name_str);
 		data->pretty_name = strdup(essid_str);
-		set_item_userptr(my_items[i], data);
+		set_item_userptr(main_items[i], data);
 	}
 }
 
@@ -705,7 +705,7 @@ static void renderers_services(struct json_object *jobj)
 	char *dbus_short_name;
 	struct json_object *array, *dbus_long_name;
 
-	my_menu = NULL;
+	main_menu = NULL;
 	nb_items = json_object_array_length(jobj);
 
 	if (nb_items == 0) {
@@ -719,8 +719,8 @@ static void renderers_services(struct json_object *jobj)
 	dbus_long_name = json_object_array_get_idx(array, 0);
 
 	dbus_short_name = extract_dbus_short_name(json_object_get_string(dbus_long_name));
-	my_items = malloc(sizeof(ITEM *) * (nb_items+1));
-	assert(my_items != NULL);
+	main_items = malloc(sizeof(ITEM *) * (nb_items+1));
+	assert(main_items != NULL);
 
 	if (strncmp(dbus_short_name, "ethernet_", 9) == 0)
 		renderers_services_ethernet(jobj);
@@ -733,14 +733,14 @@ static void renderers_services(struct json_object *jobj)
 
 	mvwprintw(win_body, 1, 2, "Choose a network to connect to:");
 
-	my_items[nb_items] = NULL;
-	my_menu = new_menu(my_items);
-	set_menu_win(my_menu, win_body);
-	set_menu_sub(my_menu, derwin(win_body, win_body_lines-3, COLS-4, 4, 2));
-	menu_opts_off(my_menu, O_SHOWDESC);
-	set_menu_mark(my_menu, "");
-	set_menu_format(my_menu, win_body_lines-3, 1);
-	assert(post_menu(my_menu) == E_OK);
+	main_items[nb_items] = NULL;
+	main_menu = new_menu(main_items);
+	set_menu_win(main_menu, win_body);
+	set_menu_sub(main_menu, derwin(win_body, win_body_lines-3, COLS-4, 4, 2));
+	menu_opts_off(main_menu, O_SHOWDESC);
+	set_menu_mark(main_menu, "");
+	set_menu_format(main_menu, win_body_lines-3, 1);
+	assert(post_menu(main_menu) == E_OK);
 
 	repos_cursor();
 	wrefresh(win_body);
@@ -754,24 +754,24 @@ void __renderers_free_services(void)
 	int i;
 	struct userptr_data *data;
 
-	if (my_menu == NULL)
+	if (main_menu == NULL)
 		return;
 
-	unpost_menu(my_menu);
+	unpost_menu(main_menu);
 
 	for (i = 0; i < nb_items; i++) {
-		data = item_userptr(my_items[i]);
+		data = item_userptr(main_items[i]);
 		free((void *) data->dbus_name);
 		free((void *) data->pretty_name);
 		free(data);
-		free_item(my_items[i]);
+		free_item(main_items[i]);
 	}
 
-	free_menu(my_menu);
-	free(my_items);
+	free_menu(main_menu);
+	free(main_items);
 	nb_items = 0;
-	my_menu = NULL;
-	my_items = NULL;
+	main_menu = NULL;
+	main_items = NULL;
 }
 
 /*
@@ -802,7 +802,7 @@ void __renderers_services(struct json_object *jobj)
 
 	if (tech_is_connected(tech_dict)) {
 		if (!serv_array || json_object_array_length(serv_array) == 0) {
-			my_menu = NULL;
+			main_menu = NULL;
 			return;
 		}
 
@@ -826,13 +826,13 @@ void __renderers_free_service_config(void)
 	int i;
 	struct userptr_data *tmp;
 
-	if (my_menu == NULL)
+	if (main_menu == NULL)
 		return;
 
-	unpost_form(my_form);
+	unpost_form(main_form);
 
 	for (i = 0; i < nb_fields; i++) {
-		tmp = field_userptr(field[i]);
+		tmp = field_userptr(main_fields[i]);
 
 		if (tmp) {
 			if (tmp->dbus_name)
@@ -844,10 +844,10 @@ void __renderers_free_service_config(void)
 			free(tmp);
 		}
 
-		free_field(field[i]);
+		free_field(main_fields[i]);
 	}
 
-	free_form(my_form);
-	free(field);
+	free_form(main_form);
+	free(main_fields);
 	nb_fields = 0;
 }

@@ -31,10 +31,10 @@ extern "C" {
 #endif
 
 extern WINDOW *win_header, *win_footer, *win_body, *inner;
-extern ITEM **my_items;
-extern MENU *my_menu;
-extern FIELD **field;
-extern FORM *my_form;
+extern ITEM **main_items;
+extern MENU *main_menu;
+extern FIELD **main_fields;
+extern FORM *main_form;
 extern int win_body_lines;
 extern int nb_pages;
 

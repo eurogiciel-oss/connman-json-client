@@ -264,13 +264,13 @@ static void exec_refresh()
 	struct userptr_data *tmp;
 
 	if (nb_fields != 0) {
-		tmp_field = current_field(my_form);
+		tmp_field = current_field(main_form);
 		assert(tmp_field != NULL);
 		tmp = field_userptr(tmp_field);
 		context.cursor_id = strdup(tmp->dbus_name);
 	} else if (nb_items != 0) {
 		// We use the dbus_name as a unique key
-		item = current_item(my_menu);
+		item = current_item(main_menu);
 		assert(item != NULL);
 		tmp = item_userptr(item);
 		context.cursor_id = strdup(tmp->dbus_name);
@@ -308,31 +308,31 @@ void repos_cursor(void)
 		nb_active_fields = 0;
 
 		for (i = 0; i < nb_fields; i++) {
-			if (!(field_opts(field[i]) & O_ACTIVE))
+			if (!(field_opts(main_fields[i]) & O_ACTIVE))
 				continue;
 
 			nb_active_fields++;
-			tmp = field_userptr(field[i]);
+			tmp = field_userptr(main_fields[i]);
 
 			if (strncmp(tmp->dbus_name, context.cursor_id, 256) == 0) {
 				for (j = 1; j < nb_active_fields; j++)
-					form_driver(my_form, REQ_NEXT_FIELD);
+					form_driver(main_form, REQ_NEXT_FIELD);
 
-				wrefresh(my_form->sub);
+				wrefresh(main_form->sub);
 				break;
 			}
 		}
 
 	} else if (nb_items != 0) { // On menus
 		for (i = 0; i < nb_items; i++) {
-			item = my_items[i];
+			item = main_items[i];
 			tmp = item_userptr(item);
 
 			if (strncmp(context.cursor_id, tmp->dbus_name, 256) == 0) {
 				for (j = 0; j < i; j++)
-					menu_driver(my_menu, REQ_NEXT_ITEM);
+					menu_driver(main_menu, REQ_NEXT_ITEM);
 
-				wrefresh(my_menu->usersub);
+				wrefresh(main_menu->usersub);
 				break;
 			}
 		}
@@ -891,8 +891,8 @@ static int search_previous_config_label(int pos)
 	char *key_str, *tmp_str;
 	bool field_is_editable;
 
-	for (; pos > 0 && field[pos] != NULL; pos--) {
-		f = field[pos];
+	for (; pos > 0 && main_fields[pos] != NULL; pos--) {
+		f = main_fields[pos];
 		field_is_editable = (unsigned)field_opts(f) & O_EDIT;
 
 		if (field_is_editable)
@@ -912,8 +912,8 @@ static int search_previous_config_label(int pos)
  * Extract a json object out of the fields of form between 2 indexes min and
  * max.
  * @param jobj holds the extracted json objects
- * @param min the lowest index in field[]
- * @param max the highest index in field[], you can set this to 0 to cover all
+ * @param min the lowest index in main_fields[]
+ * @param max the highest index in main_fields[], you can set this to 0 to cover all
  *	fields
  */
 static void build_json_config(struct json_object *jobj, int min, int max)
@@ -926,14 +926,14 @@ static void build_json_config(struct json_object *jobj, int min, int max)
 	bool buffer_is_array;
 
 	for (i = max; i > min; i--) {
-		if (!((unsigned)field_opts(field[i]) & O_EDIT))
+		if (!((unsigned)field_opts(main_fields[i]) & O_EDIT))
 			continue;
 
 		pos_label = i - 1;
 		assert(pos_label >= 0 && pos_label >= min);
 
-		buffer = field_buffer(field[i], 0);
-		pos_buffer = field_buffer(field[pos_label], 0);
+		buffer = field_buffer(main_fields[i], 0);
+		pos_buffer = field_buffer(main_fields[pos_label], 0);
 		assert(buffer != NULL && pos_buffer != NULL);
 		buffer_clean = trim_whitespaces((char *)buffer);
 		pos_buffer_clean = trim_whitespaces((char *)pos_buffer);
@@ -986,8 +986,8 @@ static void modify_service_config(void)
 	struct json_object *tmp;
 	char *key_str;
 
-	for (i = 0; field[i]; i++) {
-		if (!((unsigned)field_opts(field[i]) & O_EDIT))
+	for (i = 0; main_fields[i]; i++) {
+		if (!((unsigned)field_opts(main_fields[i]) & O_EDIT))
 			continue;
 
 		pos_label = search_previous_config_label(i);
@@ -996,7 +996,7 @@ static void modify_service_config(void)
 		if (pos_label == 0) {
 			// 11 = strlen("AutoConnect"), the rest of the
 			// buffer is filled with spaces
-			if (strncmp("AutoConnect", field_buffer(field[i-1], 0), 11) != 0)
+			if (strncmp("AutoConnect", field_buffer(main_fields[i-1], 0), 11) != 0)
 				continue;
 
 			build_json_config(options, i-1, i);
@@ -1007,7 +1007,7 @@ static void modify_service_config(void)
 		} else { // object representation
 			tmp = json_object_new_object();
 			build_json_config(tmp, pos_label, i);
-			key_str = field_buffer(field[pos_label], 0);
+			key_str = field_buffer(main_fields[pos_label], 0);
 			json_object_object_add(options, trim_whitespaces(key_str), tmp);
 		}
 	}
@@ -1032,28 +1032,28 @@ static void exec_action_context_home(int ch)
 
 	switch (ch) {
 		case KEY_UP:
-			menu_driver(my_menu, REQ_UP_ITEM);
+			menu_driver(main_menu, REQ_UP_ITEM);
 			break;
 
 		case KEY_DOWN:
-			menu_driver(my_menu, REQ_DOWN_ITEM);
+			menu_driver(main_menu, REQ_DOWN_ITEM);
 			break;
 
 		case 'd':
-			item = current_item(my_menu);
+			item = current_item(main_menu);
 			disconnect_of_service(item_userptr(item));
 			print_info_in_footer(false, "Disconnecting...");
 			break;
 
 		case 'p':
-			item = current_item(my_menu);
+			item = current_item(main_menu);
 			toogle_power_tech(item_userptr(item));
 			print_info_in_footer(false, "Toogling power...");
 			break;
 
 		case KEY_ENTER:
 		case 10:
-			item = current_item(my_menu);
+			item = current_item(main_menu);
 			exec_action(item_userptr(item));
 			break;
 	}
@@ -1064,49 +1064,49 @@ static void exec_action_context_home(int ch)
  */
 static void exec_action_context_service_config(int ch)
 {
-	int cur_page = form_page(my_form);
+	int cur_page = form_page(main_form);
 	struct userptr_data *data;
 
 	switch (ch) {
 		case KEY_DOWN:
-			form_driver(my_form, REQ_NEXT_FIELD);
-			form_driver(my_form, REQ_END_LINE);
+			form_driver(main_form, REQ_NEXT_FIELD);
+			form_driver(main_form, REQ_END_LINE);
 			break;
 
 		case KEY_UP:
-			form_driver(my_form, REQ_PREV_FIELD);
-			form_driver(my_form, REQ_END_LINE);
+			form_driver(main_form, REQ_PREV_FIELD);
+			form_driver(main_form, REQ_END_LINE);
 			break;
 
 		case KEY_NPAGE:
-			form_driver(my_form, REQ_NEXT_PAGE);
-			set_form_page(my_form, ++cur_page);
+			form_driver(main_form, REQ_NEXT_PAGE);
+			set_form_page(main_form, ++cur_page);
 			__renderers_services_config_paging();
 			break;
 
 		case KEY_PPAGE:
-			form_driver(my_form, REQ_PREV_PAGE);
-			set_form_page(my_form, --cur_page);
+			form_driver(main_form, REQ_PREV_PAGE);
+			set_form_page(main_form, --cur_page);
 			__renderers_services_config_paging();
 			break;
 
 		// Delete the char before cursor
 		case KEY_BACKSPACE:
 		case 127:
-			form_driver(my_form, REQ_DEL_PREV);
+			form_driver(main_form, REQ_DEL_PREV);
 			break;
 
 		// Delete the char under the cursor
 		case KEY_DC:
-			form_driver(my_form, REQ_DEL_CHAR);
+			form_driver(main_form, REQ_DEL_CHAR);
 			break;
 
 		case KEY_LEFT:
-			form_driver(my_form, REQ_PREV_CHAR);
+			form_driver(main_form, REQ_PREV_CHAR);
 			break;
 
 		case KEY_RIGHT:
-			form_driver(my_form, REQ_NEXT_CHAR);
+			form_driver(main_form, REQ_NEXT_CHAR);
 			break;
 
 		case KEY_F(7):
@@ -1116,15 +1116,15 @@ static void exec_action_context_service_config(int ch)
 			// same field. We can't use exec_action for this because
 			// we need to extract the values in fields *before*
 			// freeing them (exec_action does the opposite).
-			data = field_userptr(field[0]);
+			data = field_userptr(main_fields[0]);
 			context.serv->dbus_name = strdup(data->dbus_name);
 			modify_service_config();
 			print_info_in_footer(false, "Configuring...");
 			break;
 
 		default:
-			if ((unsigned) field_opts(current_field(my_form)) & O_EDIT)
-				form_driver(my_form, ch);
+			if ((unsigned) field_opts(current_field(main_form)) & O_EDIT)
+				form_driver(main_form, ch);
 			break;
 	}
 }
@@ -1138,16 +1138,16 @@ static void exec_action_context_services(int ch)
 
 	switch (ch) {
 		case KEY_DOWN:
-			menu_driver(my_menu, REQ_DOWN_ITEM);
+			menu_driver(main_menu, REQ_DOWN_ITEM);
 			break;
 
 		case KEY_UP:
-			menu_driver(my_menu, REQ_UP_ITEM);
+			menu_driver(main_menu, REQ_UP_ITEM);
 			break;
 
 		case KEY_ENTER:
 		case 10:
-			item = current_item(my_menu);
+			item = current_item(main_menu);
 			exec_action(item_userptr(item));
 			print_info_in_footer(false, "Connecting...");
 			break;
