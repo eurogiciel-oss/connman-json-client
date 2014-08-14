@@ -88,14 +88,13 @@ static struct {
 	void (*func_free)(); // Free elements for the current_context
 	void (*func_back)(); // What to do on 'Esc'
 	void (*func_refresh)(); // Refresh the current_context
-	void (*func_refresh_msg)(); // Refresh the footer message
 } context_actions[] = {
 	{ print_services_for_tech, __renderers_free_home_page, print_home_page,
-		print_home_page, refresh_home_msg }, // CONTEXT_HOME
+		print_home_page }, // CONTEXT_HOME
 	{ NULL, __renderers_free_service_config, print_home_page,
-		print_services_for_tech, refresh_service_config_msg }, // CONTEXT_SERVICE_CONFIG
+		print_services_for_tech }, // CONTEXT_SERVICE_CONFIG
 	{ connect_to_service, __renderers_free_services, print_home_page,
-		print_services_for_tech, refresh_services_msg }, // CONTEXT_SERVICES
+		print_services_for_tech }, // CONTEXT_SERVICES
 };
 
 /*
@@ -749,7 +748,6 @@ static void main_callback(int status, struct json_object *jobj)
 				"status: %d, jobj: %s\n", status,
 				json_object_get_string(jobj));
 	
-	context_actions[context.current_context].func_refresh_msg();
 	// Release the memory of the json object now
 	json_object_put(jobj);
 

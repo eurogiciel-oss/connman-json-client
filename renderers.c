@@ -211,6 +211,7 @@ static void renderers_technologies(struct json_object *jobj)
 	set_menu_format(main_menu, win_body_lines-3, 1);
 	assert(post_menu(main_menu) == E_OK);
 
+	refresh_home_msg();
 	repos_cursor();
 	wnoutrefresh(win_header);
 	wnoutrefresh(win_body);
@@ -565,6 +566,7 @@ static void renderers_service_config(struct json_object *tech_array,
 
 	post_form(main_form);
 	__renderers_services_config_paging();
+	refresh_service_config_msg();
 	repos_cursor();
 }
 
@@ -738,6 +740,7 @@ static void renderers_services(struct json_object *jobj)
 	set_menu_format(main_menu, win_body_lines-3, 1);
 	assert(post_menu(main_menu) == E_OK);
 
+	refresh_services_msg();
 	repos_cursor();
 	wrefresh(win_body);
 }
@@ -822,7 +825,7 @@ void __renderers_free_service_config(void)
 	int i;
 	struct userptr_data *tmp;
 
-	if (main_menu == NULL)
+	if (main_form == NULL)
 		return;
 
 	unpost_form(main_form);
@@ -841,6 +844,9 @@ void __renderers_free_service_config(void)
 		}
 
 		free_field(main_fields[i]);
+
+		// TESTING
+		main_fields[i] = NULL;
 	}
 
 	free_form(main_form);
