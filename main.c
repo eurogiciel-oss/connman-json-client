@@ -253,11 +253,72 @@ static void stop_loop(int signum)
 }
 
 /*
+ * Create windows at the right dimensions.
+ * If LINES and COLS are too small, we force the 24*80 screen.
+ */
+static void create_win(void)
+{
+	if (LINES < 24)
+		LINES = 24;
+
+	if (COLS < 80)
+		COLS = 80;
+
+	win_body_lines = LINES - 5;
+
+	// If you don't do this, the service config form won't be displayed
+	while (win_body_lines % 4 != 3)
+		win_body_lines--;
+
+	win_body = newwin(win_body_lines + 2, COLS, 1, 0);
+	assert(win_body != NULL);
+	box(win_body, 0 ,0);
+
+	win_header = newwin(1, COLS, 0, 0);
+	win_footer = newwin(2, COLS, LINES-2, 0);
+	assert(win_footer != NULL && win_header != NULL);
+
+	redrawwin(win_header);
+	redrawwin(win_body);
+	redrawwin(win_footer);
+
+	// If we don't do that, ncurses keep sending 'Esc' key on every key
+	// pressed
+	keypad(win_body, TRUE);
+}
+
+/*
+ * Delete windows, as in delwin().
+ */
+static void delete_win(void)
+{
+	delwin(win_header);
+	delwin(win_body);
+	delwin(win_footer);
+}
+
+/*
+ * Triggered on SIGWINCH signal.
+ * This function have a resize effect (but we really delete and create windows).
+ */
+static void resize(int signum)
+{
+	loop_quit();
+	endwin();
+	clear();
+	refresh();
+	delete_win();
+	create_win();
+	exec_refresh();
+	loop_run(true);
+}
+
+/*
  * Refresh context.cursor_id, free memory for the current context and execute
  * func_refresh() of the current context. The popup will be refreshed as well
  * (if it exists).
  */
-static void exec_refresh()
+static void exec_refresh(void)
 {
 	ITEM *item;
 	FIELD *tmp_field;
@@ -379,15 +440,6 @@ static void exec_back(void)
 	context_free_userptr_data();
 	context_actions[context.current_context].func_free();
 	context_actions[context.current_context].func_back();
-
-	if (popup_exists())
-		popup_refresh();
-
-	if (win_exists(win_error))
-		win_refresh(win_error);
-
-	if (win_exists(win_help))
-		win_refresh(win_help);
 }
 
 /*
@@ -1219,7 +1271,7 @@ void ncurses_action(void)
 	}
 
 	if (ch == 27) {
-
+		// In case the user didn't read the whole footer...
 		if (context.current_context == CONTEXT_HOME)
 			print_info_in_footer2(false, "^C to quit");
 		else
@@ -1269,19 +1321,19 @@ void ncurses_action(void)
 
 /*
  * Initialize everything, run the loop then terminate everything.
- * Adjustments on the win_body_lines variable is done here (in some cases the
+ * Adjustments on the win_body_lines variable is done (in some cases the
  * scrolling menu won't be displayed, thus we have to adjust the window height
  * for everything to work smoothly).
  */
 int main(void)
 {
-	struct json_object *cmd;
 	engine_callback = main_callback;
 
 	if (engine_init() < 0)
 		exit(1);
 
 	signal(SIGINT, stop_loop);
+	signal(SIGWINCH, resize);
 	loop_init();
 
 	initscr();
@@ -1289,26 +1341,7 @@ int main(void)
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
-
-	win_body_lines = LINES - 5;
-
-	// If you don't do this, the service config form won't be displayed
-	while (win_body_lines % 4 != 3)
-		win_body_lines--;
-
-	win_body = newwin(win_body_lines + 2, COLS, 1, 0);
-	box(win_body, 0 ,0);
-	keypad(win_body, TRUE);
-
-	win_header = newwin(1, COLS, 0, 0);
-	win_footer = newwin(2, COLS, LINES-2, 0);
-
-	// Print all windows, according to the man it's more efficient than 3
-	// wrefresh
-	wnoutrefresh(win_header);
-	wnoutrefresh(win_body);
-	wnoutrefresh(win_footer);
-	doupdate();
+	create_win();
 
 	context.current_context = CONTEXT_HOME;
 	context.serv = malloc(sizeof(struct userptr_data));
@@ -1320,21 +1353,12 @@ int main(void)
 	context.tech->dbus_name = NULL;
 	context.tech->pretty_name = NULL;
 
-	// get_home_page (and render it)
-	cmd = json_object_new_object();
-	json_object_object_add(cmd, key_command,
-			json_object_new_string(key_engine_get_home_page));
-	if (engine_query(cmd) == -EINVAL)
-		report_error();
-
-	refresh_home_msg();
+	print_home_page();
 
 	loop_run(true);
 	loop_terminate();
 
-	delwin(win_header);
-	delwin(win_body);
-	delwin(win_footer);
+	delete_win();
 	endwin();
 
 	return 0;

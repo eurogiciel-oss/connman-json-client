@@ -241,7 +241,7 @@ static void renderers_state(struct json_object *jobj)
 	// 38 = len(string) + 1
 	mvwprintw(win_header, 0, COLS-38, "State: %-6s%-6sOfflineMode: %-5s\n",
 			state_str, "", json_object_get_string(offline_mode));
-	wrefresh(win_header);
+	redrawwin(win_header);
 }
 
 /*
@@ -844,12 +844,11 @@ void __renderers_free_service_config(void)
 		}
 
 		free_field(main_fields[i]);
-
-		// TESTING
-		main_fields[i] = NULL;
 	}
 
 	free_form(main_form);
 	free(main_fields);
 	nb_fields = 0;
+	main_fields = NULL;
+	main_form = NULL;
 }

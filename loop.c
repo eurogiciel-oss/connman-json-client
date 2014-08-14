@@ -157,7 +157,7 @@ void loop_run(bool poll_stdin)
 
 		// poll
 		status = poll(fds, (nfds_t) nfds, -1);
-		if (status <= 0) {
+		if (status <= 0 && errno != EINTR) {
 			printf("\n[-] poll error %d:%s\n", errno,
 					strerror(errno));
 			break;
