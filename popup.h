@@ -43,6 +43,8 @@ bool popup_exists(void);
 
 void popup_driver(int ch);
 
+void popup_move(int posy, int posx);
+
 #ifdef __cplusplus
 }
 #endif

@@ -328,3 +328,12 @@ bool popup_exists(void)
 {
 	return (win_body != NULL);
 }
+
+/*
+ * Move the win_body of the popup at the given coordinates.
+ */
+void popup_move(int posy, int posx)
+{
+	mvwin(win_body, posy, posx);
+	popup_refresh();
+}

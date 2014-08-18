@@ -26,6 +26,8 @@
 
 #include "special_win.h"
 
+#define WINDOW_EXIT_MSG "'Esc' to close."
+
 /*
  * This is used for help and error windows.
  */
@@ -54,7 +56,7 @@ static WINDOW* win_new(int rows, int cols, int posy, int posx, const char *msg,
 		mvwprintw(win, 1, 1, "Help:\n\n%s", msg);
 
 	box(win, 0, 0);
-	mvwprintw(win, rows-2, 1, "'Esc' to close.");
+	mvwprintw(win, rows-2, 1, WINDOW_EXIT_MSG);
 	win_refresh(win);
 
 	return win;
@@ -105,4 +107,17 @@ void win_driver(WINDOW **win, int ch)
 		*win = NULL;
 	} else
 		win_refresh(*win);
+}
+
+/*
+ * Resize the window to the given height and length.
+ */
+void win_resize(WINDOW *win, int rows, int cols)
+{
+	if (win) {
+		wresize(win, rows, cols);
+		box(win, 0, 0);
+		mvwprintw(win, rows-2, 1, WINDOW_EXIT_MSG);
+		win_refresh(win);
+	}
 }

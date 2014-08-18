@@ -312,6 +312,15 @@ static void resize(int signum)
 	get_state();
 	exec_refresh();
 	loop_run(true);
+
+	if (popup_exists())
+		popup_move((LINES-17)/2, (COLS-75)/2);
+
+	if (win_error)
+		win_resize(win_error, win_body_lines, COLS-2);
+
+	if (win_help)
+		win_resize(win_help, win_body_lines, COLS-2);
 }
 
 /*

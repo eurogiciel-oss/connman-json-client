@@ -30,4 +30,6 @@ void win_refresh(WINDOW *win);
 
 void win_driver(WINDOW **win, int ch);
 
+void win_resize(WINDOW *win, int rows, int cols);
+
 #endif
