@@ -228,7 +228,7 @@ static void renderers_technologies(struct json_object *jobj)
 	 "SessionMode": false
  }
  */
-static void renderers_state(struct json_object *jobj)
+void __renderers_state(struct json_object *jobj)
 {
 	struct json_object *state, *offline_mode;
 	const char *state_str;
@@ -242,11 +242,12 @@ static void renderers_state(struct json_object *jobj)
 	mvwprintw(win_header, 0, COLS-38, "State: %-6s%-6sOfflineMode: %-5s\n",
 			state_str, "", json_object_get_string(offline_mode));
 	redrawwin(win_header);
+	wrefresh(win_header);
 }
 
 /*
  * The home page is a list of technologies and the general status of connman.
- * Thus, this function call renderers_technologies and renderers_state.
+ * Thus, this function call renderers_technologies and __renderers_state.
  * @param jobj A json object with technologies and state:
  {
  	key_technologies: { ... },
@@ -267,7 +268,7 @@ void __renderers_home_page(struct json_object *jobj)
 	box(win_body, 0, 0);
 	mvwprintw(win_body, 1, 2, "Technologies:");
 
-	renderers_state(state);
+	__renderers_state(state);
 	renderers_technologies(tech);
 
 	context.current_context = CONTEXT_HOME;

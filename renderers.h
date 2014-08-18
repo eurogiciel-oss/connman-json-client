@@ -55,6 +55,8 @@ struct context_info {
 	char *cursor_id;		// tag-like, see main.c repos_cursor()
 };
 
+void __renderers_state(struct json_object *jobj);
+
 void __renderers_home_page(struct json_object *jobj);
 
 void __renderers_free_home_page(void);

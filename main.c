@@ -60,9 +60,9 @@ extern FORM *popup_form;
 extern FIELD **popup_fields;
 extern struct popup_actions **popup_btn_action;
 
-static void print_services_for_tech();
-static void connect_to_service();
-
+static void print_services_for_tech(void);
+static void connect_to_service(void);
+static void get_state(void);
 static void print_home_page(void);
 static void exec_refresh(void);
 
@@ -309,6 +309,7 @@ static void resize(int signum)
 	refresh();
 	delete_win();
 	create_win();
+	get_state();
 	exec_refresh();
 	loop_run(true);
 }
@@ -339,15 +340,6 @@ static void exec_refresh(void)
 
 	context_actions[context.current_context].func_free();
 	context_actions[context.current_context].func_refresh();
-
-	if (popup_exists())
-		popup_refresh();
-
-	if (win_exists(win_error))
-		win_driver(&win_error, 0);
-
-	if (win_exists(win_help))
-		win_driver(&win_help, 0);
 }
 
 /*
@@ -460,6 +452,9 @@ static void action_on_cmd_callback(struct json_object *jobj)
 
 	else if (strcmp(key_engine_get_services_from_tech, cmd_name) == 0)
 		__renderers_services(data);
+
+	else if (strcmp(key_engine_get_state, cmd_name) == 0)
+		__renderers_state(data);
 
 	else
 		print_info_in_footer(true, "Unknown command called");
@@ -821,6 +816,22 @@ static void print_home_page(void)
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_get_home_page));
+
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+}
+
+/*
+ * Asks for the state of connman. Note that the state is a part of the home
+ * page. This particular function is useful to refresh win_header on resize.
+ */
+static void get_state(void)
+{
+	struct json_object *cmd;
+
+	cmd = json_object_new_object();
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_get_state));
 
 	if (engine_query(cmd) == -EINVAL)
 		report_error();

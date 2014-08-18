@@ -393,13 +393,33 @@ static struct json_object* coating(const char *cmd_name,
 	return res;
 }
 
+static int init_get_state(void)
+{
+	return __cmd_state();
+}
+
+static int init_get_technologies(void)
+{
+	return __cmd_technologies();
+}
+
+static int init_get_services(void)
+{
+	return __cmd_services();
+}
+
 /*
  * Execute the state command.
  * @param jobj ignored
  */
 static int get_state(struct json_object *jobj)
 {
-	return __cmd_state();
+	struct json_object *res;
+
+	res = coating(key_engine_get_state, state);
+	engine_callback(0, res);
+
+	return -EINPROGRESS;
 }
 
 /*
@@ -408,7 +428,12 @@ static int get_state(struct json_object *jobj)
  */
 static int get_services(struct json_object *jobj)
 {
-	return __cmd_services();
+	struct json_object *res;
+
+	res = coating(key_engine_get_services, services);
+	engine_callback(0, res);
+
+	return -EINPROGRESS;
 }
 
 /*
@@ -417,7 +442,12 @@ static int get_services(struct json_object *jobj)
  */
 static int get_technologies(struct json_object *jobj)
 {
-	return __cmd_technologies();
+	struct json_object *res;
+
+	res = coating(key_engine_get_technologies, technologies);
+	engine_callback(0, res);
+
+	return -EINPROGRESS;
 }
 
 /*
@@ -1077,9 +1107,8 @@ int engine_init(void)
 	// We need the loop to get callbacks to init our things
 	loop_init();
 	init_status = INIT_STATE;
-	res = get_state(NULL);
 
-	if (res != -EINPROGRESS)
+	if ((res = init_get_state()) != -EINPROGRESS)
 		return res;
 
 	loop_run(false);
@@ -1092,13 +1121,13 @@ int engine_init(void)
 
 	init_status = INIT_TECHNOLOGIES;
 
-	if ((res = get_technologies(NULL)) != -EINPROGRESS)
+	if ((res = init_get_technologies()) != -EINPROGRESS)
 		return res;
 
 	loop_run(false);
 	init_status = INIT_SERVICES;
 
-	if ((res = get_services(NULL)) != -EINPROGRESS)
+	if ((res = init_get_services()) != -EINPROGRESS)
 		return res;
 
 	loop_run(false);
