@@ -274,7 +274,7 @@ static void create_win(void)
 
 	win_body = newwin(win_body_lines + 2, COLS, 1, 0);
 	assert(win_body != NULL);
-	box(win_body, 0 ,0);
+	box(win_body, 0, 0);
 
 	win_header = newwin(1, COLS, 0, 0);
 	win_footer = newwin(2, COLS, LINES-2, 0);

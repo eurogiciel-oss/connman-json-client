@@ -320,31 +320,6 @@ static bool tech_is_connected(struct json_object *jobj)
 }
 
 /*
- * This is used to compute how many fields are needed to display the service
- * configuration.
- * @param jobj The service dictionary
- */
-static int compute_nb_elems_in_service(struct json_object *jobj)
-{
-	int longest_key_len = 0, tmp_len, tmp_len_obj = 0;
-
-	json_object_object_foreach(jobj, key, val) {
-
-		if (json_object_get_type(val) == json_type_object) {
-			nb_fields++; // count 1 for the label of the subsection
-			tmp_len_obj = compute_nb_elems_in_service(val);
-
-		} else
-			nb_fields += 2; // count 2 for a label and a field
-
-		if (key && (tmp_len = strlen(key)) > longest_key_len)
-			longest_key_len = tmp_len;
-	}
-
-	return longest_key_len > tmp_len_obj ? longest_key_len : tmp_len_obj;
-}
-
-/*
  * Create a field and fill the buffer with the string representation of val.
  * This field can be visited by the cursor, it also dynamicaly resize (in buffer
  * length).
@@ -436,7 +411,7 @@ static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str
  * the modifiable fields. All of this from a service dictionary.
  * To keep the cursor from moving on signal, a string is affected to mark each
  * field. This is used by repos_cursor().
- * @param longest_key_len The longuest length for a label
+ * @param longest_key_len The longest length for a label
  * @param pos The index in main_fields[]
  * @param jobj The service dictionary
  * @param is_obj_modifiable Use to set the whole object as modifiable (usefull
@@ -466,7 +441,7 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 			is_modifiable = false;
 		} else {
 			// insert the page delimiter
-			if (cur_y >= win_body_lines-2) {
+			if (cur_y >= win_body_lines-3) {
 				cur_y = 1;
 				set_new_page(main_fields[(*pos)-1], TRUE);
 				move_field(main_fields[(*pos)-1], cur_y, cur_x);
@@ -501,7 +476,7 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 }
 
 /*
- * Compute the number of needed fields, allocate the memory, render fields and
+ * Allocate memory for every fields possible in a service, render fields and
  * print them. The result is a form (html-like) displaying every information
  * connman has on a service, some of the settings can be modified. See
  * connman/doc/services-api.txt for more informations.
@@ -514,6 +489,7 @@ static void renderers_service_config(struct json_object *tech_array,
 {
 	struct json_object *serv_dict, *tmp, *tmp_val;
 	int longest_key_len, i, k;
+	const int max_nb_fields = 113;
 	struct userptr_data *data;
 	const char *serv_dbus_name;
 	const char *keys[] = { key_serv_state, key_serv_error, key_serv_name,
@@ -526,23 +502,19 @@ static void renderers_service_config(struct json_object *tech_array,
 		key_serv_domains, key_serv_domains_config, key_serv_proxy,
 		key_serv_proxy_config, key_serv_prov, NULL };
 
-	nb_fields = 0;
 	cur_y = 1;
 	cur_x = 1;
 	serv_dict = json_object_array_get_idx(serv_array, 1);
 	serv_dbus_name = json_object_get_string(
 			json_object_array_get_idx(serv_array, 0));
 
-	// We compute how many fields we will need
-	longest_key_len = compute_nb_elems_in_service(serv_dict);
-
-	main_fields = malloc(sizeof(ITEM *) * (nb_fields + 1));
-	longest_key_len += 4; // For padding
+	longest_key_len = 25 + 4; // len("Nameservers.Configuration") + padding
+	main_fields = malloc(sizeof(ITEM *) * max_nb_fields); // 113 = #fields + #labels + 1
 	i = 0;
 
 	str_field[0] = '\0';
 
-	for (k = 0; keys[k] != NULL && i < nb_fields; k++) {
+	for (k = 0; keys[k] != NULL && i < max_nb_fields; k++) {
 		if (json_object_object_get_ex(serv_dict, keys[k], &tmp_val) == TRUE) {
 			tmp = json_object_new_object();
 			json_object_object_add(tmp, keys[k], json_object_get(tmp_val));
@@ -550,6 +522,8 @@ static void renderers_service_config(struct json_object *tech_array,
 			json_object_put(tmp);
 		}
 	}
+
+	nb_fields = i;
 
 	data = malloc(sizeof(struct userptr_data));
 	data->dbus_name = strdup(serv_dbus_name);
@@ -600,7 +574,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 {
 	int i;
 	// Name
-	char *desc_base = "%-33s", *desc;
+	char *desc_base = "%c %-33s", *desc, favorite_char;
 	const char *name_str, *dbus_name_str;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
@@ -615,9 +589,16 @@ static void renderers_services_ethernet(struct json_object *jobj)
 		json_object_object_get_ex(serv_dict, key_serv_name, &tmp);
 		name_str = json_object_get_string(tmp);
 
+		json_object_object_get_ex(serv_dict, key_serv_favorite, &tmp);
+		favorite_char = ' ';
+
+		if (tmp && json_object_get_boolean(tmp) == TRUE)
+			favorite_char = 'f';
+
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
-		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base, name_str);
+		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base,
+				favorite_char, name_str);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 
 		dbus_name_str = json_object_get_string(serv_name);
@@ -641,8 +622,8 @@ static void renderers_services_wifi(struct json_object *jobj)
 {
 	int i;
 	// (favorite) eSSID  State  Security  Signal strengh
-	char *desc_base = "%s%-33s%-17s%-19s%u%%", *desc;
-	const char *favorite_str, *essid_str, *state_str, *security_str,
+	char *desc_base = "%c %-33s%-17s%-19s%u%%", *desc, favorite_char;
+	const char *essid_str, *state_str, *security_str,
 	      *serv_name_str;
 	uint8_t signal_strength;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
@@ -677,16 +658,15 @@ static void renderers_services_wifi(struct json_object *jobj)
 		state_str = json_object_get_string(tmp);
 
 		json_object_object_get_ex(serv_dict, key_serv_favorite, &tmp);
-		assert(tmp != NULL);
-		favorite_str = "  ";
+		favorite_char = ' ';
 
 		if (tmp && json_object_get_boolean(tmp) == TRUE)
-			favorite_str = "f ";
+			favorite_char = 'f';
 
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
 		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base,
-				favorite_str, essid_str, state_str,
+				favorite_char, essid_str, state_str,
 				security_str, signal_strength);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 

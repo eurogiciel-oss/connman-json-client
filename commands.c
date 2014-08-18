@@ -253,7 +253,7 @@ static void config_append_ipv6(DBusMessageIter *iter,
 	struct json_object *methobj;
 	const char *method, *str;
 
-	if (!json_object_object_get_ex(jobj, "Method", &methobj)) {
+	if (!json_object_object_get_ex(jobj, key_serv_ipv6_method, &methobj)) {
 		call_return_list(NULL, "No 'Method' set", "");
 		return;
 	}
@@ -267,7 +267,7 @@ static void config_append_ipv6(DBusMessageIter *iter,
 	}
 
 	json_object_object_foreach(jobj, key, val) {
-		if (strcmp("PrefixLength", key) == 0) {
+		if (strcmp(key_serv_ipv6_prefixlength, key) == 0) {
 			int tmp = json_object_get_int(val);
 			dbus_append_dict_entry(iter, key,
 					DBUS_TYPE_BYTE, &tmp);
@@ -318,7 +318,7 @@ static void config_append_proxy(DBusMessageIter *iter,
 	struct json_object *methobj, *urlobj, *tmpobj;
 	const char *method, *url;
 
-	if (!json_object_object_get_ex(jobj, "Method", &methobj)) {
+	if (!json_object_object_get_ex(jobj, key_serv_proxy_method, &methobj)) {
 		call_return_list(NULL, "No 'Method' set", "");
 		return;
 	}
@@ -326,28 +326,28 @@ static void config_append_proxy(DBusMessageIter *iter,
 	method = json_object_get_string(methobj);
 
 	if (strcmp(method, "manual") == 0) {
-		if (!json_object_object_get_ex(jobj, "Servers", &tmpobj))
+		if (!json_object_object_get_ex(jobj, key_serv_proxy_servers, &tmpobj))
 			tmpobj = 0;
-		dbus_append_dict_string_array(iter, "Servers",
+		dbus_append_dict_string_array(iter, key_serv_proxy_servers,
 				config_append_json_array_of_strings, tmpobj);
 
-		if (!json_object_object_get_ex(jobj, "Excludes", &tmpobj))
+		if (!json_object_object_get_ex(jobj, key_serv_proxy_excludes, &tmpobj))
 			tmpobj = 0;
-		dbus_append_dict_string_array(iter, "Excludes",
+		dbus_append_dict_string_array(iter, key_serv_proxy_excludes,
 				config_append_json_array_of_strings, tmpobj);
 
 	} else if (strcmp(method, "auto") == 0) {
-		if (json_object_object_get_ex(jobj, "URL", &urlobj)) {
+		if (json_object_object_get_ex(jobj, key_serv_proxy_url, &urlobj)) {
 			url = json_object_get_string(urlobj);
 			if (url)
-				dbus_append_dict_entry(iter, "URL",
+				dbus_append_dict_entry(iter, key_serv_proxy_url,
 						DBUS_TYPE_STRING, url);
 		}
 
 	} else if (strcmp(method, "direct") != 0)
 		return;
 
-	dbus_append_dict_entry(iter, "Method", DBUS_TYPE_STRING, &method);
+	dbus_append_dict_entry(iter, key_serv_proxy_method, DBUS_TYPE_STRING, &method);
 }
 
 /*
@@ -404,28 +404,28 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 		simple_service_conf = NULL;
 		dyn_service_name = extract_dbus_short_name(service_dbus_name);
 
-		if (strcmp("IPv4.Configuration", key) == 0) {
+		if (strcmp(key_serv_ipv4_config, key) == 0) {
 			res = dbus_set_property_dict(connection,
 					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
-					"IPv4.Configuration", DBUS_TYPE_STRING,
+					key_serv_ipv4_config, DBUS_TYPE_STRING,
 					config_append_ipv4, val);
 
-		} else if (strcmp("IPv6.Configuration", key) == 0) {
+		} else if (strcmp(key_serv_ipv6_config, key) == 0) {
 			res = dbus_set_property_dict(connection,
 					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
-					"IPv6.Configuration", DBUS_TYPE_STRING,
+					key_serv_ipv6_config, DBUS_TYPE_STRING,
 					config_append_ipv6, val);
 
-		} else if (strcmp("Proxy.Configuration", key) == 0) {
+		} else if (strcmp(key_serv_proxy_config, key) == 0) {
 			res = dbus_set_property_dict(connection,
 					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
-					"Proxy.Configuration", DBUS_TYPE_STRING,
+					key_serv_proxy_config, DBUS_TYPE_STRING,
 					config_append_proxy, val);
 
-		} else if (strcmp("AutoConnect", key) == 0) {
+		} else if (strcmp(key_serv_autoconnect, key) == 0) {
 
 			if (json_object_get_boolean(val) == TRUE)
 				dbus_bool = TRUE;
@@ -434,16 +434,16 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 
 			res = dbus_set_property(connection, service_dbus_name,
 					key_service_interface, call_return_list_free,
-					dyn_service_name, "AutoConnect",
+					dyn_service_name, key_serv_autoconnect,
 					DBUS_TYPE_BOOLEAN, &dbus_bool);
 
-		} else if (strcmp("Domains.Configuration", key) == 0)
+		} else if (strcmp(key_serv_domains_config, key) == 0)
 			simple_service_conf = key;
 
-		else if (strcmp("Nameservers.Configuration", key) == 0)
+		else if (strcmp(key_serv_nameservers_config, key) == 0)
 			simple_service_conf = key;
 
-		else if (strcmp("Timeservers.Configuration", key) == 0)
+		else if (strcmp(key_serv_timeservers_config, key) == 0)
 			simple_service_conf = key;
 		else {
 			char *str = strndup(key, JSON_COMMANDS_STRING_SIZE_SMALL);
