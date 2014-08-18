@@ -188,6 +188,8 @@ static void get_help_window()
 
 		case CONTEXT_SERVICES:
 			msg = " This view list services the technology can connect to.\n"
+				" 'f' at the start of the line mean that this service has 'Favorite' = True\n"
+				" * Press 'r' to remove saved information on a service\n"
 				" * Press 'Return'/'Enter' to connect\n"
 				" * Press 'F5' to force a refresh\n"
 				" * Press 'F6' to force a rescan for the technology (some technologies don't support this)\n"
@@ -969,6 +971,28 @@ static void scan_tech(const char *tech_dbus_name)
 }
 
 /*
+ * Asks to remove the service saved information. This is kind of the equivalent
+ * to "Favorite = False". see doc/service-api.txt for more details.
+ * @param data the user pointer of the menu, data->dbus-name must be valid
+ */
+static void remove_service(struct userptr_data *data)
+{
+	struct json_object *cmd, *tmp;
+
+	cmd = json_object_new_object();
+	tmp = json_object_new_object();
+
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_remove_service));
+	json_object_object_add(tmp, key_service,
+			json_object_new_string(data->dbus_name));
+	json_object_object_add(cmd, key_command_data, tmp);
+
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+}
+
+/*
  * Return the position of the previous label suffixed with ".Configuration".
  */
 static int search_previous_config_label(int pos)
@@ -1237,6 +1261,11 @@ static void exec_action_context_services(int ch)
 
 		case KEY_UP:
 			menu_driver(main_menu, REQ_UP_ITEM);
+			break;
+
+		case 'r':
+			item = current_item(main_menu);
+			remove_service(item_userptr(item));
 			break;
 
 		case KEY_ENTER:

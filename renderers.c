@@ -171,7 +171,7 @@ static void renderers_technologies(struct json_object *jobj)
 
 		json_object_object_foreach(tech_dict, key, val) {
 
-			if (strcmp("Name", key) == 0)
+			if (strcmp(key_serv_name, key) == 0)
 				k_name = json_object_get_string(val);
 
 			else if (strcmp("Type", key) == 0)
@@ -233,7 +233,7 @@ void __renderers_state(struct json_object *jobj)
 	struct json_object *state, *offline_mode;
 	const char *state_str;
 
-	json_object_object_get_ex(jobj, "State", &state);
+	json_object_object_get_ex(jobj, key_serv_state, &state);
 	state_str = json_object_get_string(state);
 	json_object_object_get_ex(jobj, "OfflineMode", &offline_mode);
 
@@ -406,26 +406,26 @@ static void config_fields_type(int pos, bool is_autoconnect, const char *obj_str
 		return;
 	}
 
-	if (strcmp(key, "Privacy") == 0) {
+	if (strcmp(key, key_serv_ipv6_privacy) == 0) {
 		set_field_type(main_fields[pos], TYPE_ENUM, ipv6_privacy_enum, 0, 1);
 		return;
 	}
 
 	// Only "Method" attributes below this point.
-	if (strcmp(key, "Method") != 0 || obj_str == NULL)
+	if (strcmp(key, key_serv_ipv4_method) != 0 || obj_str == NULL)
 		return;
 
-	if (strcmp(obj_str, "IPv4.Configuration") == 0) {
+	if (strcmp(obj_str, key_serv_ipv4_config) == 0) {
 		set_field_type(main_fields[pos], TYPE_ENUM, ipv4_method_enum, 0, 1);
 		return;
 	}
 
-	if (strcmp(obj_str, "IPv6.Configuration") == 0) {
+	if (strcmp(obj_str, key_serv_ipv6_config) == 0) {
 		set_field_type(main_fields[pos], TYPE_ENUM, ipv6_method_enum, 0, 1);
 		return;
 	}
 
-	if (strcmp(obj_str, "Proxy.Configuration") == 0) {
+	if (strcmp(obj_str, key_serv_proxy_config) == 0) {
 		set_field_type(main_fields[pos], TYPE_ENUM, proxy_method_enum, 0, 1);
 		return;
 	}
@@ -475,7 +475,7 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 
 			main_fields[*pos] = render_field(longest_key_len, val);
 			assert(main_fields[*pos] != NULL);
-			is_autoconnect = strcmp(key, "AutoConnect") == 0;
+			is_autoconnect = strcmp(key, key_serv_autoconnect) == 0;
 
 			if (is_modifiable || is_autoconnect) {
 				field_opts_on(main_fields[*pos], O_EDIT);
@@ -612,7 +612,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 		serv_name = json_object_array_get_idx(sub_array, 0);
 		serv_dict = json_object_array_get_idx(sub_array, 1);
 
-		json_object_object_get_ex(serv_dict, "Name", &tmp);
+		json_object_object_get_ex(serv_dict, key_serv_name, &tmp);
 		name_str = json_object_get_string(tmp);
 
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
@@ -640,22 +640,23 @@ static void renderers_services_ethernet(struct json_object *jobj)
 static void renderers_services_wifi(struct json_object *jobj)
 {
 	int i;
-	// eSSID  State  Security  Signal strengh
-	char *desc_base = "%-33s%-17s%-19s%u%%", *desc;
-	const char *essid_str, *state_str, *security_str, *serv_name_str;
+	// (favorite) eSSID  State  Security  Signal strengh
+	char *desc_base = "%s%-33s%-17s%-19s%u%%", *desc;
+	const char *favorite_str, *essid_str, *state_str, *security_str,
+	      *serv_name_str;
 	uint8_t signal_strength;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "%-33s%-17s%-10s%17s", "eSSID", "State", "Security", "Signal"
-			" Strength");
+	mvwprintw(win_body, 3, 2, "  %-33s%-17s%-10s%15s", "eSSID", "State",
+			"Security", "Signal" " Strength");
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
 		serv_name = json_object_array_get_idx(sub_array, 0);
 		serv_dict = json_object_array_get_idx(sub_array, 1);
 
-		json_object_object_get_ex(serv_dict, "Name", &tmp);
+		json_object_object_get_ex(serv_dict, key_serv_name, &tmp);
 
 		// hidden wifi
 		if (tmp)
@@ -663,22 +664,30 @@ static void renderers_services_wifi(struct json_object *jobj)
 		else
 			essid_str = "[hidden]";
 
-		json_object_object_get_ex(serv_dict, "Security", &tmp);
+		json_object_object_get_ex(serv_dict, key_serv_security, &tmp);
 		assert(tmp != NULL);
 		security_str = json_object_get_string(tmp);
 
-		json_object_object_get_ex(serv_dict, "Strength", &tmp);
+		json_object_object_get_ex(serv_dict, key_serv_strength, &tmp);
 		assert(tmp != NULL);
 		signal_strength = (uint8_t) json_object_get_int(tmp);
 
-		json_object_object_get_ex(serv_dict, "State", &tmp);
+		json_object_object_get_ex(serv_dict, key_serv_state, &tmp);
 		assert(tmp != NULL);
 		state_str = json_object_get_string(tmp);
 
+		json_object_object_get_ex(serv_dict, key_serv_favorite, &tmp);
+		assert(tmp != NULL);
+		favorite_str = "  ";
+
+		if (tmp && json_object_get_boolean(tmp) == TRUE)
+			favorite_str = "f ";
+
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
-		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base, essid_str,
-			state_str, security_str, signal_strength);
+		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base,
+				favorite_str, essid_str, state_str,
+				security_str, signal_strength);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 
 		serv_name_str = json_object_get_string(serv_name);

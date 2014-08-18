@@ -55,6 +55,8 @@ int __cmd_toggle_tech_power(const char *tech_dbus_name, bool set_power_to);
 
 int __cmd_toggle_offline_mode(bool set_offline_to);
 
+int __cmd_remove(const char *serv_dbus_name);
+
 #ifdef __cplusplus
 }
 #endif

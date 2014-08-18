@@ -37,7 +37,7 @@
 #include "loop.h"
 
 void stop_loop(int signum);
-void (*engine_callback)(int status, struct json_object *jobj) = NULL;
+//void (*engine_callback)(int status, struct json_object *jobj) = NULL;
 void main_callback(int status, struct json_object *jobj);
 
 void callback_ended(void)
@@ -54,10 +54,10 @@ void stop_loop(int signum)
 void main_callback(int status, struct json_object *jobj)
 {
 	printf("[*] cb: status %s (%d)\n", strerror(status), status);
-	dbus_json_print_pretty(jobj);
+	printf("%s", json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_PRETTY));
 }
 
-void __ncurses_action(int ch) {
+void ncurses_action(int ch) {
 	return;
 }
 
@@ -67,7 +67,7 @@ int main()
 
 	engine_callback = main_callback;
 
-	if (__engine_init() < 0)
+	if (engine_init() < 0)
 		exit(1);
 
 	signal(SIGINT, stop_loop);
@@ -85,7 +85,7 @@ int main()
 	printf("[*] get_services:\n");
 	cmd = json_object_new_object();
 	json_object_object_add(cmd, "command", json_object_new_string("get_services"));
-	__engine_query(cmd);
+	engine_query(cmd);
 
 	/*
 	// get_technologies
@@ -97,6 +97,7 @@ int main()
 
 	loop_run(false);
 	loop_terminate();
+	engine_terminate();
 
 	return 0;
 }

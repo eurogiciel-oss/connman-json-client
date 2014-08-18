@@ -703,6 +703,25 @@ static int toggle_offline_mode(struct json_object *jobj)
 }
 
 /*
+ * Remove method of Service. This basically set the "Favorite" attribute to
+ * false.
+ * @param jobj json object with a valid dbus service name
+ */
+static int remove_service(struct json_object *jobj)
+{
+	struct json_object *tmp;
+	const char *serv_dbus_name;
+
+	json_object_object_get_ex(jobj, key_service, &tmp);
+	serv_dbus_name = json_object_get_string(tmp);
+
+	if (serv_dbus_name == NULL || !has_service(serv_dbus_name))
+		return -EINVAL;
+
+	return __cmd_remove(serv_dbus_name);
+}
+
+/*
  * This is the list of commands engine_query will answer to.
  * If you want to use a json object instead of a regex for data verification,
  * set trusted_is_json_string to false and add a filter in init_cmd_table.
@@ -740,6 +759,8 @@ static struct {
 	{ key_engine_toggle_tech_power, toggle_power_technology, true, {
 		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ key_engine_toggle_offline_mode, toggle_offline_mode, true, { "" } },
+	{ key_engine_remove_service, remove_service, true, {
+		"{ \"service\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
 	{ NULL, }, // this is a sentinel
 };
 

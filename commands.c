@@ -214,6 +214,17 @@ int __cmd_toggle_offline_mode(bool set_offline_to)
 }
 
 /*
+ * Remove method of Service. See doc/service-api.txt for more details.
+ * @param serv_dbus_name the dbus name of the service
+ */
+int __cmd_remove(const char *serv_dbus_name)
+{
+	return dbus_method_call(connection, key_connman_service,
+			serv_dbus_name, key_service_interface, "Remove",
+			call_return_list, NULL, NULL, NULL);
+}
+
+/*
  * Append the IPv4 json object to iter.
  * @param iter valid dbus message iteration
  * @param jobj IPv4 settings
