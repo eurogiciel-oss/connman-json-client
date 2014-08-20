@@ -796,10 +796,19 @@ static void main_callback(int status, struct json_object *jobj)
 		allow_refresh = true;
 		exec_refresh();
 
-	} else
-		print_info_in_footer(true, "Unidentified call back: "
-				"status: %d, jobj: %s\n", status,
-				json_object_get_string(jobj));
+	} else {
+		int i = 0;
+
+		json_object_object_foreach(jobj, key, val) {
+			assert(key && val);
+			i++;
+		}
+
+		if (i != 0)
+			print_info_in_footer(true, "Unidentified call back: "
+					"status: %d, jobj: %s\n", status,
+					json_object_get_string(jobj));
+	}
 	
 	// Release the memory of the json object now
 	json_object_put(jobj);
@@ -1221,8 +1230,7 @@ static void exec_action_context_service_config(int ch)
 
 		case KEY_F(7):
 			// Fix the current item buffer
-			form_driver(main_form, REQ_PREV_FIELD);
-			form_driver(main_form, REQ_NEXT_FIELD);
+			form_driver(main_form, REQ_VALIDATION);
 			// The dbus name of the service is stored in the first
 			// item (it's a non active one). The active items have a
 			// tagging system to keep the pointer's position on the

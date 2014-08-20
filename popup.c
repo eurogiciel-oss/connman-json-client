@@ -222,10 +222,7 @@ static void driver_buttons(ITEM *item)
  */
 static void switch_to_buttons(void)
 {
-	// Those 2 lines allow the field buffer to be set
-	form_driver(popup_form, REQ_PREV_FIELD);
-	form_driver(popup_form, REQ_NEXT_FIELD);
-
+	form_driver(popup_form, REQ_VALIDATION);
 	menu_driver(popup_menu, REQ_FIRST_ITEM);
 	is_on_button = true;
 	set_menu_fore(popup_menu, A_REVERSE); // "show" the button
