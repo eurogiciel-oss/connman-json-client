@@ -479,6 +479,7 @@ static void action_on_signal(struct json_object *jobj)
 	json_bool tmp_bool;
 	bool is_tech_removed, is_current_tech, got_connected;
 	const char *tmp_str;
+	char *dbus_short_name;
 
 	json_object_object_get_ex(jobj, key_command_path, &sig_path);
 	json_object_object_get_ex(jobj, key_command_data, &sig_data);
@@ -491,26 +492,38 @@ static void action_on_signal(struct json_object *jobj)
 	else
 		is_current_tech = strncmp(context.tech->dbus_name, json_object_get_string(sig_path), 256) == 0;
 
-	if (is_tech_removed && is_current_tech)
+	if (is_tech_removed && is_current_tech) {
 		exec_back();
-	else {
-		got_connected = false;
+		return;
+	}
 
-		if (sig_data && json_object_get_type(sig_data) == json_type_array) {
-			tmp_str = json_object_get_string(json_object_array_get_idx(sig_data, 0));
-			tmp_bool = json_object_get_boolean(json_object_array_get_idx(sig_data, 1));
-			
-			if (tmp_str && strcmp("Connected", tmp_str) == 0 && tmp_bool)
-				got_connected = true;
+	got_connected = false;
+
+	if (sig_data && json_object_get_type(sig_data) == json_type_array) {
+		tmp_str = json_object_get_string(json_object_array_get_idx(sig_data, 0));
+		tmp_bool = json_object_get_boolean(json_object_array_get_idx(sig_data, 1));
+
+		if (tmp_str && strcmp("Connected", tmp_str) == 0 && tmp_bool)
+			got_connected = true;
+	}
+
+	if (context.current_context == CONTEXT_SERVICE_CONFIG) {
+		dbus_short_name = extract_dbus_short_name(context.serv->dbus_name);
+
+		if (strcmp(dbus_short_name, json_object_get_string(sig_path)) != 0) {
+			free(dbus_short_name);
+			return;
 		}
 
-		// This is to prevent always changing wifi services in areas
-		// with a load of networks
-		if (context.current_context != CONTEXT_SERVICES ||
-				(allow_refresh || got_connected)) {
-			exec_refresh();
-			allow_refresh = false;
-		}
+		free(dbus_short_name);
+	}
+
+	// This is to prevent always changing wifi services in areas
+	// with a load of networks
+	if (context.current_context != CONTEXT_SERVICES ||
+			(allow_refresh || got_connected)) {
+		exec_refresh();
+		allow_refresh = false;
 	}
 }
 
