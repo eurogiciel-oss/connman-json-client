@@ -477,7 +477,7 @@ static void action_on_signal(struct json_object *jobj)
 {
 	struct json_object *sig_path, *sig_data, *sig_name;
 	json_bool tmp_bool;
-	bool is_tech_removed, is_current_tech, got_connected;
+	bool is_tech_removed, is_current_tech, got_connected, got_removed;
 	const char *tmp_str;
 	char *dbus_short_name;
 
@@ -498,6 +498,7 @@ static void action_on_signal(struct json_object *jobj)
 	}
 
 	got_connected = false;
+	got_removed = false;
 
 	if (sig_data && json_object_get_type(sig_data) == json_type_array) {
 		tmp_str = json_object_get_string(json_object_array_get_idx(sig_data, 0));
@@ -505,6 +506,9 @@ static void action_on_signal(struct json_object *jobj)
 
 		if (tmp_str && strcmp("Connected", tmp_str) == 0 && tmp_bool)
 			got_connected = true;
+
+		if (tmp_str && strcmp("Favorite", tmp_str) == 0 && !tmp_bool)
+			got_removed = true;
 	}
 
 	if (context.current_context == CONTEXT_SERVICE_CONFIG) {
@@ -521,7 +525,7 @@ static void action_on_signal(struct json_object *jobj)
 	// This is to prevent always changing wifi services in areas
 	// with a load of networks
 	if (context.current_context != CONTEXT_SERVICES ||
-			(allow_refresh || got_connected)) {
+			(allow_refresh || got_connected || got_removed)) {
 		exec_refresh();
 		allow_refresh = false;
 	}
