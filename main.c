@@ -267,11 +267,6 @@ static void create_win(void)
 		COLS = 80;
 
 	win_body_lines = LINES - 5;
-
-	// If you don't do this, the service config form won't be displayed
-	while (win_body_lines % 4 != 3)
-		win_body_lines--;
-
 	win_body = newwin(win_body_lines + 2, COLS, 1, 0);
 	assert(win_body != NULL);
 	box(win_body, 0, 0);
@@ -1370,9 +1365,6 @@ void ncurses_action(void)
 
 /*
  * Initialize everything, run the loop then terminate everything.
- * Adjustments on the win_body_lines variable is done (in some cases the
- * scrolling menu won't be displayed, thus we have to adjust the window height
- * for everything to work smoothly).
  */
 int main(void)
 {

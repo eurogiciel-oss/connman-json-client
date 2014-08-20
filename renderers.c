@@ -439,7 +439,7 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
 			is_modifiable = false;
 		} else {
 			// insert the page delimiter
-			if (cur_y >= win_body_lines-3) {
+			if (cur_y >= win_body_lines-4) {
 				cur_y = 1;
 				set_new_page(main_fields[(*pos)-1], TRUE);
 				move_field(main_fields[(*pos)-1], cur_y, cur_x);
