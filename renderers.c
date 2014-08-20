@@ -212,11 +212,9 @@ static void renderers_technologies(struct json_object *jobj)
 	assert(post_menu(main_menu) == E_OK);
 
 	refresh_home_msg();
+	wrefresh(win_header);
+	wrefresh(win_body);
 	repos_cursor();
-	wnoutrefresh(win_header);
-	wnoutrefresh(win_body);
-	wnoutrefresh(win_footer);
-	doupdate();
 }
 
 /*
@@ -732,7 +730,6 @@ static void renderers_services(struct json_object *jobj)
 
 	refresh_services_msg();
 	repos_cursor();
-	wrefresh(win_body);
 }
 
 /*
