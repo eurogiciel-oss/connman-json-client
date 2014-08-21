@@ -93,130 +93,6 @@ static void react_to_sig_manager(struct json_object *interface,
 static struct agent_data *agent_data_cache;
 
 /*
- * The dbus service return something wierd for the Proxy.Configuration field :
- * an array. Whereas the documentation specifies that Proxy.Configuration is an
- * object (at the image of Proxy). This function replaces Proxy.Configuration by
- * Proxy.
- */
-static void better_proxy_conf(struct json_object *serv_dict)
-{
-	struct json_object *tmp;
-
-	if (json_object_object_get_ex(serv_dict, "Proxy.Configuration", &tmp) == FALSE)
-		return;
-
-	if (tmp && json_object_get_type(tmp) != json_type_array)
-		return;
-
-	json_object_object_get_ex(serv_dict, "Proxy", &tmp);
-
-	if (!tmp)
-		return;
-
-	json_object_object_del(serv_dict, "Proxy.Configuration");
-	json_object_object_add(serv_dict, "Proxy.Configuration",
-			json_object_get(tmp));
-}
-
-/*
- * IPv4.Configuration don't contain every single fields like IPv4 does, this
- * create problem if you want to manually configure your network.
- */
-static void better_ipv4_conf(struct json_object *serv_dict)
-{
-	struct json_object *ipv4, *tmp, *ref;
-	
-	json_object_object_get_ex(serv_dict, "IPv4", &ipv4);
-	json_object_object_get_ex(serv_dict, "IPv4.Configuration", &tmp);
-
-	if (!ipv4)
-		return;
-
-	/*
-	 * This is kind of awful but connman append to send an empty array
-	 * or an object with only the Method attribute
-	 * for IPv4.Configuration instead of an object, so i have to make
-	 * the object myself...
-	 */
-	ref = json_object_new_object();
-	tmp = NULL;
-
-	if (json_object_object_get_ex(ipv4, "Method", &tmp))
-		json_object_object_add(ref, "Method", json_object_new_string(json_object_get_string(tmp)));
-
-	if (json_object_object_get_ex(ipv4, "Address", &tmp))
-		json_object_object_add(ref, "Address", json_object_new_string(json_object_get_string(tmp)));
-
-	if (json_object_object_get_ex(ipv4, "Netmask", &tmp))
-		json_object_object_add(ref, "Netmask", json_object_new_string(json_object_get_string(tmp)));
-
-	if (json_object_object_get_ex(ipv4, "Gateway", &tmp))
-		json_object_object_add(ref, "Gateway", json_object_new_string(json_object_get_string(tmp)));
-
-	json_object_object_add(serv_dict, "IPv4.Configuration", ref);
-}
-
-/*
- * IPv6.Configuration don't contain every single fields like IPv6 does, this
- * create problem if you want to manually configure your network.
- */
-static void better_ipv6_conf(struct json_object *serv_dict)
-{
-	struct json_object *ipv6, *tmp, *ref;
-	
-	json_object_object_get_ex(serv_dict, "IPv6", &ipv6);
-
-	if (!ipv6 || json_object_get_type(ipv6) != json_type_object)
-		return;
-
-	ref = json_object_new_object();
-
-	if (json_object_object_get_ex(ipv6, "Method", &tmp))
-		json_object_object_add(ref, "Method", json_object_new_string(json_object_get_string(tmp)));
-
-	if (json_object_object_get_ex(ipv6, "Address", &tmp))
-		json_object_object_add(ref, "Address", json_object_new_string(json_object_get_string(tmp)));
-
-	if (json_object_object_get_ex(ipv6, "PrefixLength", &tmp))
-		json_object_object_add(ref, "PrefixLength", json_object_new_int(json_object_get_int(tmp)));
-
-	if (json_object_object_get_ex(ipv6, "Gateway", &tmp))
-		json_object_object_add(ref, "Gateway", json_object_new_string(json_object_get_string(tmp)));
-
-	if (json_object_object_get_ex(ipv6, "Privacy", &tmp))
-		json_object_object_add(ref, "Privacy", json_object_new_string(json_object_get_string(tmp)));
-
-	json_object_object_add(serv_dict, "IPv6.Configuration", ref);
-}
-
-/*
- * Apply the functions above to an service dictionary.
- */
-static void change_weird_conf(struct json_object *serv_dict)
-{
-	better_proxy_conf(serv_dict);
-	better_ipv4_conf(serv_dict);
-	better_ipv6_conf(serv_dict);
-}
-
-/*
- * Apply the functions above to a list of services (structured like the global
- * var).
- */
-static void change_weird_conf_array(struct json_object *serv_array)
-{
-	struct json_object *sub_array, *serv_dict;
-	int i;
-
-	for (i = 0; i < json_object_array_length(serv_array); i++) {
-		sub_array = json_object_array_get_idx(serv_array, i);
-		assert(sub_array != NULL);
-		serv_dict = json_object_array_get_idx(sub_array, 1);
-		change_weird_conf(serv_dict);
-	}
-}
-
-/*
  * Forward callbacks from commands_callback (If the engine is not in state of
  * initialization)
  */
@@ -232,7 +108,6 @@ static void engine_commands_cb(struct json_object *data, json_bool is_error)
 			break;
 
 		case INIT_SERVICES:
-			change_weird_conf_array(data);
 			services = data;
 			break;
 
@@ -894,8 +769,6 @@ static void react_to_sig_service(struct json_object *interface,
 		json_object_object_del(serv_dict, key);
 		json_object_object_add(serv_dict, key, val);
 	}
-
-	change_weird_conf(serv_dict);
 }
 
 /*
@@ -995,7 +868,6 @@ static void react_to_sig_manager(struct json_object *interface,
 		for (i = 0; i < len; i++) {
 			sub_array = json_object_array_get_idx(serv_to_add, i);
 			serv_dict = json_object_array_get_idx(sub_array, 1);
-			change_weird_conf(serv_dict);
 
 			// if the service have been "modified"
 			if (json_object_array_length(serv_dict)) {

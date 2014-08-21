@@ -171,24 +171,20 @@ static void get_help_window()
 			break;
 
 		case CONTEXT_SERVICE_CONFIG:
-			msg = " This view list the connection/service settings.\n"
+			msg = " This view list the connection/service settings. Use it wisely !\n"
+				" /!\\ WARNING: Setting IPv4/6 'Method' to 'off' can block future connections to this service.\n"
 				" You can modify underlined settings. Some settings require arrays of strings. Those have the following format: '[ \"string\", ... ]'.\n"
-				" * 'AutoConnect' can be 'true' or 'false'\n"
+				" 'AutoConnect and 'Method' fields have a set of possible values, to change the value use the space bar or the left/right arrow keys.\n\n"
 				" * 'Nameservers.Configuration', 'Timeservers.Configuration' and 'Domains.Configuration' must be an array of strings (IPs, domains...).\n"
 				" * 'Proxy.Configuration':\n"
-				"\t* 'Method' one of 'direct', 'auto' or 'manual'\n"
 				"\t* 'URL' the url\n"
 				"\t* 'Servers' and 'Excludes' are arrays of strings\n"
-				" * 'IPv4' 'Method' one of 'dhcp', 'manual' and 'off'.\n"
-				" * 'IPv6' 'Method' one of 'auto', 'manual', '6to4' and 'off'.\n\n"
-				" * Press 'F5' to force refresh\n"
-				" * Press 'F7' to submit changes\n"
-				" * Press '^C' to quit";
+				" * Press 'F5' to force refresh, Press 'F7' to submit changes, Press '^C' to quit";
 			break;
 
 		case CONTEXT_SERVICES:
 			msg = " This view list services the technology can connect to.\n"
-				" 'f' at the start of the line mean that this service has 'Favorite' = True\n"
+				" 'f' at the start of the line means that this service has 'Favorite' = True\n"
 				" * Press 'r' to remove saved information on a service\n"
 				" * Press 'Return'/'Enter' to connect\n"
 				" * Press 'F5' to force a refresh\n"
@@ -356,7 +352,7 @@ static void exec_refresh(void)
  */
 void repos_cursor(void)
 {
-	int i, j, nb_active_fields;
+	int i, j;
 	struct userptr_data *tmp;
 	ITEM *item;
 
@@ -364,20 +360,20 @@ void repos_cursor(void)
 		return;
 
 	if (nb_fields != 0) { // On forms
-		nb_active_fields = 0;
 
 		for (i = 0; i < nb_fields; i++) {
 			if (!(field_opts(main_fields[i]) & O_ACTIVE))
 				continue;
 
-			nb_active_fields++;
 			tmp = field_userptr(main_fields[i]);
 
 			if (strncmp(tmp->dbus_name, context.cursor_id, 256) == 0) {
-				for (j = 1; j < nb_active_fields; j++)
-					form_driver(main_form, REQ_NEXT_FIELD);
-
-				wrefresh(main_form->sub);
+				// This trick print the page of the field and
+				// set the cursor on the correct field.
+				unpost_form(main_form);
+				main_form->curpage = main_fields[i]->page;
+				main_form->current = main_fields[i];
+				post_form(main_form);
 				break;
 			}
 		}
@@ -490,7 +486,7 @@ static void action_on_signal(struct json_object *jobj)
 	if (context.tech->dbus_name == NULL)
 		is_current_tech = false;
 	else
-		is_current_tech = strncmp(context.tech->dbus_name, json_object_get_string(sig_path), 256) == 0;
+		is_current_tech = strncmp(context.tech->dbus_name, json_object_to_json_string(sig_data), 256) == 0;
 
 	if (is_tech_removed && is_current_tech) {
 		exec_back();
@@ -512,6 +508,9 @@ static void action_on_signal(struct json_object *jobj)
 	}
 
 	if (context.current_context == CONTEXT_SERVICE_CONFIG) {
+		if (context.serv->dbus_name == NULL)
+			return;
+
 		dbus_short_name = extract_dbus_short_name(context.serv->dbus_name);
 
 		if (strcmp(dbus_short_name, json_object_get_string(sig_path)) != 0) {
@@ -1203,15 +1202,35 @@ static void exec_action_context_service_config(int ch)
 	int cur_page = form_page(main_form);
 	struct userptr_data *data;
 
+	if (field_type(current_field(main_form)) == TYPE_ENUM) {
+		switch (ch) {
+			case KEY_LEFT:
+				form_driver(main_form, REQ_PREV_CHOICE);
+				return;
+
+			case ' ':
+			case KEY_RIGHT:
+				form_driver(main_form, REQ_NEXT_CHOICE);
+				return;
+
+			case KEY_UP:
+			case KEY_DOWN:
+			case KEY_NPAGE:
+			case KEY_PPAGE:
+				break;
+
+			default:
+				return;
+		}
+	}
+
 	switch (ch) {
 		case KEY_DOWN:
 			form_driver(main_form, REQ_NEXT_FIELD);
-			form_driver(main_form, REQ_END_LINE);
 			break;
 
 		case KEY_UP:
 			form_driver(main_form, REQ_PREV_FIELD);
-			form_driver(main_form, REQ_END_LINE);
 			break;
 
 		case KEY_NPAGE:
