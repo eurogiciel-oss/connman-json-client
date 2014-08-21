@@ -276,6 +276,9 @@ static DBusMessage *agent_request_browser(DBusConnection *connection,
 
 void report_error_return(struct json_object *retry, struct agent_data *request)
 {
+	if (!request || !retry)
+		return;
+
 	if (json_object_get_boolean(retry) == TRUE)
 		request->reply = dbus_message_new_error(request->message,
 				"net.connman.Agent.Error.Retry", NULL);
