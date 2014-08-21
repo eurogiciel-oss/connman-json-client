@@ -221,7 +221,7 @@ static void popup_free(void)
 /*
  * Stop the main loop and free the allocated memory.
  */
-static void stop_loop(int signum)
+static void stop_loop(int signum, siginfo_t *si, void *useless)
 {
 	loop_quit();
 
@@ -294,7 +294,7 @@ static void delete_win(void)
  * Triggered on SIGWINCH signal.
  * This function have a resize effect (but we really delete and create windows).
  */
-static void resize(int signum)
+static void resize(int signum, siginfo_t *si, void *useless)
 {
 	loop_quit();
 	endwin();
@@ -1019,13 +1019,11 @@ static int search_previous_config_label(int pos)
 {
 	FIELD *f;
 	char *key_str, *tmp_str;
-	bool field_is_editable;
 
 	for (; pos > 0 && main_fields[pos] != NULL; pos--) {
 		f = main_fields[pos];
-		field_is_editable = (unsigned)field_opts(f) & O_EDIT;
 
-		if (field_is_editable)
+		if ((unsigned)field_opts(f) & O_EDIT)
 			continue;
 
 		key_str = field_buffer(f, 0);
@@ -1068,14 +1066,14 @@ static void build_json_config(struct json_object *jobj, int min, int max)
 		buffer_clean = trim_whitespaces((char *)buffer);
 		pos_buffer_clean = trim_whitespaces((char *)pos_buffer);
 
-		buffer_is_array = strcmp("Nameservers.Configuration",
+		buffer_is_array = strcmp(key_serv_nameservers_config,
 				pos_buffer_clean) == 0;
-		buffer_is_array |= strcmp("Timeservers.Configuration",
+		buffer_is_array |= strcmp(key_serv_timeservers_config,
 				pos_buffer_clean) == 0;
-		buffer_is_array |= strcmp("Domains.Configuration",
+		buffer_is_array |= strcmp(key_serv_domains_config,
 				pos_buffer_clean) == 0;
 
-		if (strcmp("AutoConnect", pos_buffer_clean) == 0) {
+		if (strcmp(key_serv_autoconnect, pos_buffer_clean) == 0) {
 			autoconnect = strcmp("true", buffer_clean);
 			json_object_object_add(jobj, pos_buffer_clean,
 					json_object_new_boolean(autoconnect == 0 ? TRUE : FALSE));
@@ -1126,7 +1124,7 @@ static void modify_service_config(void)
 		if (pos_label == 0) {
 			// 11 = strlen("AutoConnect"), the rest of the
 			// buffer is filled with spaces
-			if (strncmp("AutoConnect", field_buffer(main_fields[i-1], 0), 11) != 0)
+			if (strncmp(key_serv_autoconnect, field_buffer(main_fields[i-1], 0), 11) != 0)
 				continue;
 
 			build_json_config(options, i-1, i);
@@ -1412,13 +1410,23 @@ void ncurses_action(void)
  */
 int main(void)
 {
-	engine_callback = main_callback;
+	struct sigaction sig_int, sig_winch;
 
 	if (engine_init() < 0)
 		exit(1);
 
-	signal(SIGINT, stop_loop);
-	signal(SIGWINCH, resize);
+	engine_callback = main_callback;
+
+	// Affect actions to SIGINT and SIGWINCH
+	sig_int.sa_flags = SA_SIGINFO;
+	sig_winch.sa_flags = SA_SIGINFO;
+	sigemptyset(&sig_int.sa_mask);
+	sigemptyset(&sig_winch.sa_mask);
+	sig_int.sa_sigaction = stop_loop;
+	sig_winch.sa_sigaction = resize;
+	sigaction(SIGINT, &sig_int, NULL);
+	sigaction(SIGWINCH, &sig_winch, NULL);
+
 	loop_init();
 
 	initscr();
