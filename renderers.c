@@ -571,13 +571,13 @@ void __renderers_services_config_paging(void)
 static void renderers_services_ethernet(struct json_object *jobj)
 {
 	int i;
-	// Name
-	char *desc_base = "%c %-33s", *desc, favorite_char;
-	const char *name_str, *dbus_name_str;
+	// Name  State
+	char *desc_base = "%c %-33s%-17s", *desc, favorite_char;
+	const char *name_str, *state_str, *dbus_name_str;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "%-33s", "Name");
+	mvwprintw(win_body, 3, 2, "  %-33s%-17s", "Name", "State");
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
@@ -586,6 +586,9 @@ static void renderers_services_ethernet(struct json_object *jobj)
 
 		json_object_object_get_ex(serv_dict, key_serv_name, &tmp);
 		name_str = json_object_get_string(tmp);
+
+		json_object_object_get_ex(serv_dict, key_serv_state, &tmp);
+		state_str = json_object_get_string(tmp);
 
 		json_object_object_get_ex(serv_dict, key_serv_favorite, &tmp);
 		favorite_char = ' ';
@@ -596,7 +599,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
 		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base,
-				favorite_char, name_str);
+				favorite_char, name_str, state_str);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 
 		dbus_name_str = json_object_get_string(serv_name);
