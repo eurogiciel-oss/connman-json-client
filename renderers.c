@@ -577,7 +577,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "  %-33s%-17s", "Name", "State");
+	mvwprintw(win_body, 3, 2, "  %-33s%-17s", key_serv_name, key_serv_state);
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
@@ -630,8 +630,8 @@ static void renderers_services_wifi(struct json_object *jobj)
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "  %-33s%-17s%-10s%15s", "eSSID", "State",
-			"Security", "Signal" " Strength");
+	mvwprintw(win_body, 3, 2, "  %-33s%-17s%-10s%15s", "eSSID",
+			key_serv_state, key_serv_security, "Signal Strength");
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);

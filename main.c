@@ -1153,7 +1153,7 @@ static void modify_service_config(void)
 
 	json_object_object_add(cmd_data, key_service,
 			json_object_new_string(context.serv->dbus_name));
-	json_object_object_add(cmd_data, "options", options);
+	json_object_object_add(cmd_data, key_options, options);
 	json_object_object_add(cmd, key_command_data, cmd_data);
 	json_object_object_add(cmd, key_command,
 			json_object_new_string(key_engine_config_service));
@@ -1187,12 +1187,12 @@ static void exec_action_context_home(int ch)
 		case 'p':
 			item = current_item(main_menu);
 			toggle_power_tech(item_userptr(item));
-			print_info_in_footer(false, "Toogling power...");
+			print_info_in_footer(false, "Toggling power...");
 			break;
 
 		case 'o':
 			toggle_offline_mode();
-			print_info_in_footer(false, "Toogling OfflineMode...");
+			print_info_in_footer(false, "Toggling OfflineMode...");
 			break;
 
 		case KEY_ENTER:

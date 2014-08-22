@@ -89,7 +89,7 @@ int main()
 	json_object_object_add(jsubtrusted, "IPv4", jsubtrusted2);
 	json_object_object_add(jsubtrusted3, "Address", json_object_new_string(IPV6_REGEX));
 	json_object_object_add(jsubtrusted, "IPv6", jsubtrusted3);
-	json_object_object_add(jtrusted, "options", jsubtrusted);
+	json_object_object_add(jtrusted, key_options, jsubtrusted);
 	*/
 
 	/*

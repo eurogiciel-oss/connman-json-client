@@ -183,7 +183,7 @@ int __cmd_scan(const char *tech_dbus_name)
 }
 
 /*
- * Toogle the Powered state of the technology.
+ * Toggle the Powered state of the technology.
  * @param tech_dbus_name the dbus name of the technology
  * @param set_power_to the new power state to set
  */
@@ -200,7 +200,7 @@ int __cmd_toggle_tech_power(const char *tech_dbus_name, bool set_power_to)
 }
 
 /*
- * Toogle the OfflineMode attribute of Manager.
+ * Toggle the OfflineMode attribute of Manager.
  * @param set_offline_to the new offline mode to set
  */
 int __cmd_toggle_offline_mode(bool set_offline_to)
@@ -400,7 +400,7 @@ static void user_proof_manual_method(struct json_object *service,
 /*
  * Note that option names are the same as the ones in connman/doc/services-api.txt
  *
-   "options": {
+   {
 	   "IPv4.Configuration": {
 		   "Method": "dhcp"|"manual"|"off",
 		   "Address": "xxxx",

@@ -31,7 +31,7 @@
 #include "ncurses_utils.h"
 
 /*
- * This file aim to provide simple functions to print informations in win_footer
+ * This file provide simple functions to print informations in win_footer
  * and keep footer messages.
  */
 

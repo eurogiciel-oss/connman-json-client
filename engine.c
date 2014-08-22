@@ -348,7 +348,7 @@ static int get_home_page(struct json_object *jobj)
 	json_object_object_add(res, key_state, json_object_get(state));
 	json_object_object_add(res, key_technologies, json_object_get(technologies));
 
-	engine_callback(0, coating("get_home_page", res));
+	engine_callback(0, coating(key_engine_get_home_page, res));
 
 	// coating increment ref count of res, but creating a new object already
 	// increment the ref count of res
@@ -431,7 +431,7 @@ static int get_services_from_tech(struct json_object *jobj)
 	res = json_object_new_object();
 	json_object_object_add(res, key_services, res_serv);
 	json_object_object_add(res, key_technology, res_tech);
-	engine_callback(0, coating("get_services_from_tech", res));
+	engine_callback(0, coating(key_engine_get_services_from_tech, res));
 	json_object_put(res);
 
 	return -EINPROGRESS;
@@ -621,21 +621,21 @@ static struct {
 	{ key_engine_get_technologies, get_technologies, true, { "" } },
 	{ key_engine_get_home_page, get_home_page, true, { "" } },
 	{ key_engine_get_services_from_tech, get_services_from_tech, true, {
-		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+		key_engine_tech_regex } },
 	{ key_engine_connect, connect_to_service, true, {
-		"{ \"service\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+		key_engine_serv_regex } },
 	{ key_engine_disconnect, disconnect_technology, true, {
-		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+		key_engine_tech_regex } },
 	{ key_engine_agent_response, agent_response, false, { "" } },
 	{ key_engine_agent_retry, agent_error_response, false, { "" } },
 	{ key_engine_scan_tech, scan_technology, true, {
-		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+		key_engine_tech_regex } },
 	{ key_engine_config_service, config_service, false, { "" } },
 	{ key_engine_toggle_tech_power, toggle_power_technology, true, {
-		"{ \"technology\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+		key_engine_tech_regex } },
 	{ key_engine_toggle_offline_mode, toggle_offline_mode, true, { "" } },
 	{ key_engine_remove_service, remove_service, true, {
-		"{ \"service\": \"(%5C%5C|/|([a-zA-Z]))+\" }" } },
+		key_engine_serv_regex } },
 	{ NULL, }, // this is a sentinel
 };
 
