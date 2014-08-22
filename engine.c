@@ -520,18 +520,18 @@ static int scan_technology(struct json_object *jobj)
  */
 static int config_service(struct json_object *jobj)
 {
-	struct json_object *tmp, *opt;
+	struct json_object *tmp, *opt, *serv;
 	const char *serv_dbus_name;
 
 	json_object_object_get_ex(jobj, key_service, &tmp);
 	serv_dbus_name = json_object_get_string(tmp);
 
-	if (serv_dbus_name == NULL || !has_service(serv_dbus_name))
+	if (serv_dbus_name == NULL || (serv = get_service(serv_dbus_name)) == NULL)
 		return -EINVAL;
 	
 	json_object_object_get_ex(jobj, key_options, &opt);
 
-	return __cmd_config_service(serv_dbus_name, opt);
+	return __cmd_config_service(serv, opt);
 }
 
 /*

@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "dbus_helpers.h"
 #include "agent.h"
@@ -351,6 +352,52 @@ static void config_append_proxy(DBusMessageIter *iter,
 }
 
 /*
+ * If the options object have a "Method" attribute set to "manual" we fill in
+ * the blanks of the options object with the service ones.
+ *
+ * The reason of this special operation is that connmand don't always send every
+ * field we can fill in configuration. Example, if you have "IPv4" with "Method" =
+ * "dhcp", you will likely only get the "Method" field in "IPv4.Configuration".
+ * This is a problem if you wish to change the "Method" of "IPv4.Configuration"
+ * to "manual", because when you configure a network as manual, you need to
+ * fill in EVERY attribute ("Address", "Netmask" and "Gateway"). If you don't
+ * fill every required field, the service will enter "failure" mode while
+ * claiming to be connected. If you try to reconnect to this service, connmand
+ * will crash (in versions < 1.25).
+ *
+ * @param service a json object e.g. content of service IPv4
+ * @param options a json object e.g. content of options IPv4, this object may be
+ *	incomplete
+ */
+static void user_proof_manual_method(struct json_object *service,
+		struct json_object *options)
+{
+	struct json_object *tmp;
+	const char *method_str;
+
+	// key_serv_ipv4_method == key_serv_ipv6_method == key_serv_proxy_method
+	// => "Method"
+	json_object_object_get_ex(options, key_serv_ipv4_method, &tmp);
+
+	if (!tmp)
+		return;
+
+	method_str = json_object_get_string(tmp);
+
+	if (strcmp("manual", method_str) != 0 || json_object_is_type(service,
+				json_type_object) == FALSE)
+		return;
+
+	json_object_object_foreach(service, key, val) {
+		if (json_object_object_get_ex(options, key, NULL) == FALSE) {
+			// We "copy" the string
+			tmp = json_object_new_string(json_object_get_string(val));
+			json_object_object_add(options, key, tmp);
+		}
+	}
+}
+
+/*
  * Note that option names are the same as the ones in connman/doc/services-api.txt
  *
    "options": {
@@ -379,14 +426,23 @@ static void config_append_proxy(DBusMessageIter *iter,
 	   "Timeservers.Configuration: [ "timeserver1", "timeserver2" ]
    }
  *
- * @param service_dbus_name dbus name of the service to configure
+ * @param service json object of the service [ "service_dbus_name", { service dict }
  * @param options json object, see above for format
  */
-int __cmd_config_service(const char *service_dbus_name, struct json_object *options)
+int __cmd_config_service(struct json_object *service,
+		struct json_object *options)
 {
 	int res = 0;
 	char *simple_service_conf, *dyn_service_name;
 	dbus_bool_t dbus_bool;
+	struct json_object *tmp, *serv_dict;
+	const char *service_dbus_name;
+
+	tmp = json_object_array_get_idx(service, 0);
+	assert(tmp != NULL);
+	service_dbus_name = json_object_get_string(tmp);
+	serv_dict = json_object_array_get_idx(service, 1);
+	assert(serv_dict != NULL);
 
 	if (!service_dbus_name) {
 		call_return_list(NULL, "Wrong service name",
@@ -405,6 +461,10 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 		dyn_service_name = extract_dbus_short_name(service_dbus_name);
 
 		if (strcmp(key_serv_ipv4_config, key) == 0) {
+			json_object_object_get_ex(serv_dict, key_serv_ipv4, &tmp);
+			assert(tmp != NULL);
+			user_proof_manual_method(tmp, val);
+
 			res = dbus_set_property_dict(connection,
 					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
@@ -412,6 +472,10 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 					config_append_ipv4, val);
 
 		} else if (strcmp(key_serv_ipv6_config, key) == 0) {
+			json_object_object_get_ex(serv_dict, key_serv_ipv6, &tmp);
+			assert(tmp != NULL);
+			user_proof_manual_method(tmp, val);
+
 			res = dbus_set_property_dict(connection,
 					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,
@@ -419,6 +483,10 @@ int __cmd_config_service(const char *service_dbus_name, struct json_object *opti
 					config_append_ipv6, val);
 
 		} else if (strcmp(key_serv_proxy_config, key) == 0) {
+			json_object_object_get_ex(serv_dict, key_serv_proxy, &tmp);
+			assert(tmp != NULL);
+			user_proof_manual_method(tmp, val);
+
 			res = dbus_set_property_dict(connection,
 					service_dbus_name, key_service_interface,
 					call_return_list_free, dyn_service_name,

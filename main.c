@@ -1226,6 +1226,7 @@ static void exec_action_context_service_config(int ch)
 			case KEY_DOWN:
 			case KEY_NPAGE:
 			case KEY_PPAGE:
+			case KEY_F(7):
 				break;
 
 			default:

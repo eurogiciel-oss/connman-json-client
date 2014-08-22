@@ -49,7 +49,7 @@ int __cmd_disconnect(const char *serv_dbus_name);
 
 int __cmd_scan(const char *tech_dbus_name);
 
-int __cmd_config_service(const char *service_name, struct json_object *options);
+int __cmd_config_service(struct json_object *service, struct json_object *options);
 
 int __cmd_toggle_tech_power(const char *tech_dbus_name, bool set_power_to);
 
