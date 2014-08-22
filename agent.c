@@ -263,7 +263,7 @@ static DBusMessage *agent_request_browser(DBusConnection *connection,
 	dbus_message_iter_next(&iter);
 	dbus_message_iter_get_basic(&iter, &url);
 
-	tmp = format_agent_msg("Agent RequestBrowser", service,
+	tmp = format_agent_msg(key_agent_request_browser, service,
 		json_object_new_string(url));
 	format_agent_with_callback(tmp, "Connected ?",
 		"request_browser_return");
@@ -337,7 +337,7 @@ static DBusMessage *agent_request_input(DBusConnection *connection,
 
 	dbus_message_iter_next(&iter);
 
-	res = format_agent_msg("Input Requested", service,
+	res = format_agent_msg(key_agent_request_input, service,
 			dbus_to_json(&iter));
 	free(service);
 
@@ -348,8 +348,7 @@ static DBusMessage *agent_request_input(DBusConnection *connection,
 }
 
 static void agent_unregister_return(DBusMessageIter *iter,
-		const char *error,
-		void *user_data)
+		const char *error, void *user_data)
 {
 	if (error)
 		agent_error_callback(format_agent_error(error, "Got error while"

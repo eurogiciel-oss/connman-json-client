@@ -848,7 +848,7 @@ static void react_to_sig_manager(struct json_object *interface,
 			   *tmp, *tmp_array;
 	int i, len;
 
-	if (strcmp(sig_name, "ServicesChanged") == 0) {
+	if (strcmp(sig_name, key_sig_serv_changed) == 0) {
 		// remove services (they disappeared)
 		serv_to_del = json_object_array_get_idx(data, 1);
 		len = json_object_array_length(serv_to_del);
@@ -877,7 +877,7 @@ static void react_to_sig_manager(struct json_object *interface,
 			}
 		}
 
-	} else if (strcmp(sig_name, "PropertyChanged") == 0) {
+	} else if (strcmp(sig_name, key_sig_prop_changed) == 0) {
 		/* state:
 		 * {
 		 *	"State": "online",
@@ -891,10 +891,10 @@ static void react_to_sig_manager(struct json_object *interface,
 		json_object_object_add(state, tmp_str,
 				json_object_array_get_idx(data, 1));
 
-	} else if (strcmp(sig_name, "TechnologyAdded") == 0) {
+	} else if (strcmp(sig_name, key_sig_tech_added) == 0) {
 		json_object_array_add(technologies, json_object_get(data));
 
-	} else if (strcmp(sig_name, "TechnologyRemoved") == 0) {
+	} else if (strcmp(sig_name, key_sig_tech_removed) == 0) {
 		tmp_str = json_object_get_string(data);
 		tmp_array = json_object_new_array();
 		len = json_object_array_length(technologies);

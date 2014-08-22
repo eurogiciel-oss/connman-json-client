@@ -492,7 +492,7 @@ static void action_on_signal(struct json_object *jobj)
 	json_object_object_get_ex(jobj, key_command_data, &sig_data);
 	json_object_object_get_ex(jobj, key_signal, &sig_name);
 
-	is_tech_removed = strncmp("TechnologyRemoved", json_object_get_string(sig_name), 50) == 0;
+	is_tech_removed = strncmp(key_sig_tech_removed, json_object_get_string(sig_name), 50) == 0;
 
 	if (context.tech->dbus_name == NULL)
 		is_current_tech = false;
@@ -702,10 +702,10 @@ static void action_on_agent_msg(struct json_object *jobj)
 	request_str = json_object_get_string(request);
 	service_str = json_object_get_string(service);
 
-	if (strncmp("Input Requested", request_str, 15) == 0)
+	if (strncmp(key_agent_request_input, request_str, 15) == 0)
 		agent_input_popup(service_str, data);
 
-	else if (strncmp("Agent RequestBrowser", request_str, 21) == 0)
+	else if (strncmp(key_agent_request_browser, request_str, 21) == 0)
 		print_info_in_footer(false, "The agent request you to"
 				" open the web page: %s",
 				json_object_get_string(jobj));

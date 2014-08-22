@@ -63,6 +63,8 @@ extern char key_agent_interface[];
 extern const char key_agent_error_message[];
 extern const char key_agent_error_callback[];
 extern const char key_agent_msg_data[];
+extern const char key_agent_request_browser[];
+extern const char key_agent_request_input[];
 
 extern const char key_scan_return[];
 extern const char key_connect_return[];
@@ -115,5 +117,11 @@ extern const char key_serv_prov_host[];
 extern const char key_serv_prov_domain[];
 extern const char key_serv_prov_name[];
 extern const char key_serv_prov_type[];
+
+extern const char key_sig_serv_changed[];
+extern const char key_sig_prop_changed[];
+extern const char key_sig_tech_added[];
+extern const char key_sig_tech_removed[];
+extern const char key_sig_unsupported[];
 
 #endif

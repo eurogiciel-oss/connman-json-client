@@ -59,6 +59,8 @@ char key_agent_interface[] = "net.connman.Agent";
 const char key_agent_error_message[] = "agent_error_message";
 const char key_agent_error_callback[] = "agent_error_callback";
 const char key_agent_msg_data[] = "agent_msg_data";
+const char key_agent_request_browser[] = "Agent RequestBrowser";
+const char key_agent_request_input[] = "Input Requested";
 
 const char key_scan_return[] = "scan_return";
 const char key_connect_return[] = "connect_return";
@@ -105,3 +107,9 @@ const char key_serv_prov_host[] = "Host";
 const char key_serv_prov_domain[] = "Domain";
 const char key_serv_prov_name[] = "Name";
 const char key_serv_prov_type[] = "Type";
+
+const char key_sig_serv_changed[]= "ServicesChanged";
+const char key_sig_prop_changed[] = "PropertyChanged";
+const char key_sig_tech_added[] = "TechnologyAdded";
+const char key_sig_tech_removed[] = "TechnologyRemoved";
+const char key_sig_unsupported[] = "Signal unsupported";

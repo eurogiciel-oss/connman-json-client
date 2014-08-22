@@ -576,33 +576,33 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 		path++;
 
 	if (dbus_message_is_signal(message, key_manager_interface,
-				"ServicesChanged")) {
-		sig_name = json_object_new_string("ServicesChanged");
+				key_sig_serv_changed)) {
+		sig_name = json_object_new_string(key_sig_serv_changed);
 
 	} else if (dbus_message_is_signal(message, key_manager_interface,
-				"PropertyChanged")) {
-		sig_name = json_object_new_string("PropertyChanged");
+				key_sig_prop_changed)) {
+		sig_name = json_object_new_string(key_sig_prop_changed);
 
 	} else if (dbus_message_is_signal(message, key_manager_interface,
-				"TechnologyAdded")) {
+				key_sig_tech_added)) {
 		path = dbus_message_get_member(message);
-		sig_name = json_object_new_string("TechnologyAdded");
+		sig_name = json_object_new_string(key_sig_tech_added);
 
 	} else if (dbus_message_is_signal(message, key_manager_interface,
-				"TechnologyRemoved")) {
+				key_sig_tech_removed)) {
 		path = dbus_message_get_member(message);
-		sig_name = json_object_new_string("TechnologyRemoved");
+		sig_name = json_object_new_string(key_sig_tech_removed);
 
 	} else if (dbus_message_is_signal(message, key_service_interface,
-				"PropertyChanged")) {
-		sig_name = json_object_new_string("PropertyChanged");
+				key_sig_prop_changed)) {
+		sig_name = json_object_new_string(key_sig_prop_changed);
 
 	} else if (dbus_message_is_signal(message, key_technology_interface,
-				"PropertyChanged")) {
-		sig_name = json_object_new_string("PropertyChanged");
+				key_sig_prop_changed)) {
+		sig_name = json_object_new_string(key_sig_prop_changed);
 
 	} else {
-		sig_name = json_object_new_string("Signal unsupported");
+		sig_name = json_object_new_string(key_sig_unsupported);
 	}
 
 	dbus_message_iter_init(message, &iter);
