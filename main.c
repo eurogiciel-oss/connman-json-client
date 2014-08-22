@@ -296,6 +296,14 @@ static void delete_win(void)
  */
 static void resize(int signum, siginfo_t *si, void *useless)
 {
+	sigset_t mask, orig_mask;
+
+	// Mask the SIGWINCH signal, this will allow quite fast resize but won't
+	// resist if you go nuclear on resize...
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGWINCH);
+	assert(sigprocmask(SIG_BLOCK, &mask, &orig_mask) == 0);
+
 	loop_quit();
 	endwin();
 	clear();
@@ -314,6 +322,9 @@ static void resize(int signum, siginfo_t *si, void *useless)
 
 	if (win_help)
 		win_resize(win_help, win_body_lines, COLS-2);
+
+	// Restore the normal behaviour of SIGWINCH
+	assert(sigprocmask(SIG_SETMASK, &orig_mask, NULL) == 0);
 }
 
 /*
