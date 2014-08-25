@@ -597,6 +597,25 @@ static int remove_service(struct json_object *jobj)
 }
 
 /*
+ * Return via engine_callback everything on the service matching the service
+ * name in jobj.
+ * @param jobj json object with a valid dbus service name
+ * @return [ "service dbus name", { service dict } ]
+ */
+static int engine_get_service(struct json_object *jobj)
+{
+	struct json_object *tmp;
+	const char *serv_dbus_name;
+
+	json_object_object_get_ex(jobj, key_service, &tmp);
+	serv_dbus_name = json_object_get_string(tmp);
+	tmp = coating(key_engine_get_service, get_service(serv_dbus_name));
+	engine_callback(0, tmp);
+
+	return -EINPROGRESS;
+}
+
+/*
  * This is the list of commands engine_query will answer to.
  * If you want to use a json object instead of a regex for data verification,
  * set trusted_is_json_string to false and add a filter in init_cmd_table.
@@ -635,6 +654,8 @@ static struct {
 		key_engine_tech_regex } },
 	{ key_engine_toggle_offline_mode, toggle_offline_mode, true, { "" } },
 	{ key_engine_remove_service, remove_service, true, {
+		key_engine_serv_regex } },
+	{ key_engine_get_service, engine_get_service, true, {
 		key_engine_serv_regex } },
 	{ NULL, }, // this is a sentinel
 };

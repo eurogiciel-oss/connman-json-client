@@ -75,8 +75,8 @@ void refresh_home_msg(void)
 void refresh_services_msg(void)
 {
 	print_info_in_footer(false, "'F5' to refresh network list, "
-			"'F6' to force a scan");
-	print_info_in_footer2(false, "'r' to remove favorite, 'Esc' to get "
+			"'F6' to force a scan, 's' to configure");
+	print_info_in_footer2(false, "'r' to remove favorite, 'Esc' to get"
 			"back, 'F1' for help");
 }
 

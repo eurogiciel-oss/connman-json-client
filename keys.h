@@ -49,6 +49,7 @@ extern const char key_engine_toggle_offline_mode[];
 extern const char key_engine_remove_service[];
 extern const char key_engine_tech_regex[];
 extern const char key_engine_serv_regex[];
+extern const char key_engine_get_service[];
 
 extern const char key_success[];
 extern const char key_error[];

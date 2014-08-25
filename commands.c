@@ -301,7 +301,9 @@ static void config_append_json_array_of_strings(DBusMessageIter *iter,
 				continue;
 
 			str = json_object_get_string(strobj);
-			dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &str);
+
+			if (str)
+				dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &str);
 		}
 	}
 }

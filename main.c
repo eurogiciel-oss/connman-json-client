@@ -65,6 +65,7 @@ static void connect_to_service(void);
 static void get_state(void);
 static void print_home_page(void);
 static void exec_refresh(void);
+static void get_service_settings(void);
 
 // Refres isn't automatic, this could be problematic in high wifi density areas:
 // your cursor would move around endlessly. Thus, automatic refresh is disabled
@@ -95,6 +96,8 @@ static struct {
 		print_services_for_tech }, // CONTEXT_SERVICE_CONFIG
 	{ connect_to_service, __renderers_free_services, print_home_page,
 		print_services_for_tech }, // CONTEXT_SERVICES
+	{ NULL, __renderers_free_service_config, print_services_for_tech,
+		get_service_settings }, // CONTEXT_SERVICE_CONFIG_STANDALONE
 };
 
 /*
@@ -171,6 +174,7 @@ static void get_help_window()
 			break;
 
 		case CONTEXT_SERVICE_CONFIG:
+		case CONTEXT_SERVICE_CONFIG_STANDALONE:
 			msg = " This view list the connection/service settings. Use it wisely !\n"
 				" /!\\ WARNING: Setting IPv4/6 'Method' to 'off' can block future connections to this service.\n"
 				" You can modify underlined settings. Some settings require arrays of strings. Those have the following format: '[ \"string\", ... ]'.\n"
@@ -185,6 +189,7 @@ static void get_help_window()
 		case CONTEXT_SERVICES:
 			msg = " This view list services the technology can connect to.\n"
 				" 'f' at the start of the line means that this service has 'Favorite' = True\n"
+				" * Press 's' to configure the service\n"
 				" * Press 'r' to remove saved information on a service\n"
 				" * Press 'Return'/'Enter' to connect\n"
 				" * Press 'F5' to force a refresh\n"
@@ -437,12 +442,13 @@ static void exec_action(struct userptr_data *data)
 }
 
 /*
- * Free the current context and execute func_back(). Also refresh the popup (if
- * it exists)
+ * Free the current context and execute func_back().
  */
 static void exec_back(void)
 {
-	context_free_userptr_data();
+	if (context.current_context != CONTEXT_SERVICE_CONFIG_STANDALONE)
+		context_free_userptr_data();
+
 	context_actions[context.current_context].func_free();
 	context_actions[context.current_context].func_back();
 }
@@ -453,7 +459,7 @@ static void exec_back(void)
  */
 static void action_on_cmd_callback(struct json_object *jobj)
 {
-	struct json_object *data;
+	struct json_object *data, *tmp, *array;
 	const char *cmd_name;
 
 	json_object_object_get_ex(jobj, key_command_data, &data);
@@ -469,7 +475,14 @@ static void action_on_cmd_callback(struct json_object *jobj)
 	else if (strcmp(key_engine_get_state, cmd_name) == 0)
 		__renderers_state(data);
 
-	else
+	else if (strcmp(key_engine_get_service, cmd_name) == 0) {
+		tmp = json_object_new_object();
+		array = json_object_new_array();
+		json_object_array_add(array, data);
+		json_object_object_add(tmp, key_services, array);
+		__renderers_services(tmp);
+
+	} else
 		print_info_in_footer(true, "Unknown command called");
 }
 
@@ -991,6 +1004,7 @@ static void scan_tech(const char *tech_dbus_name)
 
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
+
 	json_object_object_add(tmp, key_technology,
 			json_object_new_string(tech_dbus_name));
 	json_object_object_add(cmd, key_command,
@@ -1017,6 +1031,30 @@ static void remove_service(struct userptr_data *data)
 			json_object_new_string(key_engine_remove_service));
 	json_object_object_add(tmp, key_service,
 			json_object_new_string(data->dbus_name));
+	json_object_object_add(cmd, key_command_data, tmp);
+
+	if (engine_query(cmd) == -EINVAL)
+		report_error();
+}
+
+/*
+ * Asks for the complete information on the current service (identified by
+ * context.serv->dbus_name).
+ */
+static void get_service_settings(void)
+{
+	struct json_object *cmd, *tmp;
+
+	if (!context.serv->dbus_name)
+		return;
+
+	cmd = json_object_new_object();
+	tmp = json_object_new_object();
+
+	json_object_object_add(cmd, key_command,
+			json_object_new_string(key_engine_get_service));
+	json_object_object_add(tmp, key_service,
+			json_object_new_string(context.serv->dbus_name));
 	json_object_object_add(cmd, key_command_data, tmp);
 
 	if (engine_query(cmd) == -EINVAL)
@@ -1124,6 +1162,8 @@ static void modify_service_config(void)
 	struct json_object *options = json_object_new_object();
 	struct json_object *tmp;
 	char *key_str;
+	const char *are_obj[] = { key_serv_ipv4_config, key_serv_ipv6_config,
+		key_serv_proxy_config };
 
 	for (i = 0; main_fields[i]; i++) {
 		if (!((unsigned)field_opts(main_fields[i]) & O_EDIT))
@@ -1149,6 +1189,15 @@ static void modify_service_config(void)
 			key_str = field_buffer(main_fields[pos_label], 0);
 			json_object_object_add(options, trim_whitespaces(key_str), tmp);
 		}
+	}
+
+	// Check if the IPv4, IPv6 and Proxy Configurations are objects (connman
+	// sometimes send crappy data).
+	for (i = 0; i < 3; i++) {
+		json_object_object_get_ex(options, are_obj[i], &tmp);
+
+		if (tmp && json_object_is_type(tmp, json_type_object) == FALSE)
+			json_object_object_del(options, are_obj[i]);
 	}
 
 	json_object_object_add(cmd_data, key_service,
@@ -1302,6 +1351,7 @@ static void exec_action_context_service_config(int ch)
 static void exec_action_context_services(int ch)
 {
 	ITEM *item;
+	struct userptr_data *userptr;
 
 	switch (ch) {
 		case KEY_DOWN:
@@ -1331,6 +1381,17 @@ static void exec_action_context_services(int ch)
 			scan_tech(context.tech->dbus_name);
 			print_info_in_footer(false, "Scanning %s...",
 					context.tech->pretty_name);
+			break;
+
+		case 's':
+			item = current_item(main_menu);
+			userptr = item_userptr(item);
+
+			if (!userptr)
+				break;
+
+			context.serv->dbus_name = strdup(userptr->dbus_name);
+			get_service_settings();
 			break;
 	}
 }
@@ -1401,6 +1462,7 @@ void ncurses_action(void)
 			break;
 
 		case CONTEXT_SERVICE_CONFIG:
+		case CONTEXT_SERVICE_CONFIG_STANDALONE:
 			exec_action_context_service_config(ch);
 			break;
 

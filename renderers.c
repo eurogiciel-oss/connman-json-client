@@ -479,11 +479,9 @@ static void render_fields_from_jobj(int longest_key_len, int *pos,
  * connman has on a service, some of the settings can be modified. See
  * connman/doc/services-api.txt for more informations.
  * The first label contain the service name in the user pointer.
- * @param tech_array Array of json objects representing technologies
  * @param serv_array Array of json objects representing services
  */
-static void renderers_service_config(struct json_object *tech_array,
-		struct json_object *serv_array)
+static void renderers_service_config(struct json_object *serv_array)
 {
 	struct json_object *serv_dict, *tmp, *tmp_val;
 	int longest_key_len, i, k;
@@ -780,14 +778,21 @@ void __renderers_services(struct json_object *jobj)
 
 	json_object_object_get_ex(jobj, key_technology, &tech_array);
 	json_object_object_get_ex(jobj, key_services, &serv_array);
+	werase(win_body);
+	box(win_body, 0, 0);
+
+	if (!tech_array && serv_array) {
+		renderers_service_config(json_object_array_get_idx(serv_array, 0));
+		context.current_context = CONTEXT_SERVICE_CONFIG_STANDALONE;
+		__renderers_services_config_paging();
+		return;
+	}
 
 	if (tech_array == NULL || serv_array == NULL)
 		return;
 
 	tech_dict = json_object_array_get_idx(tech_array, 1);
 	nb_pages = 0;
-	werase(win_body);
-	box(win_body, 0, 0);
 
 	if (tech_is_connected(tech_dict)) {
 		if (!serv_array || json_object_array_length(serv_array) == 0) {
@@ -796,8 +801,7 @@ void __renderers_services(struct json_object *jobj)
 		}
 
 		// propose modifications of service parameters
-		renderers_service_config(tech_array,
-				json_object_array_get_idx(serv_array, 0));
+		renderers_service_config(json_object_array_get_idx(serv_array, 0));
 		context.current_context = CONTEXT_SERVICE_CONFIG;
 		__renderers_services_config_paging();
 	} else {
@@ -805,6 +809,8 @@ void __renderers_services(struct json_object *jobj)
 		renderers_services(serv_array);
 		context.current_context = CONTEXT_SERVICES;
 	}
+
+	wrefresh(win_body);
 }
 
 /*

@@ -44,7 +44,7 @@ struct userptr_data {
 };
 
 // Different contexts we can be in
-typedef enum {CONTEXT_HOME, CONTEXT_SERVICE_CONFIG, CONTEXT_SERVICES} context_t;
+typedef enum {CONTEXT_HOME, CONTEXT_SERVICE_CONFIG, CONTEXT_SERVICES, CONTEXT_SERVICE_CONFIG_STANDALONE} context_t;
 
 // This keep track of the execution context, the cursor position and current
 // service and technology user pointers.
