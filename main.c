@@ -446,7 +446,10 @@ static void exec_action(struct userptr_data *data)
  */
 static void exec_back(void)
 {
-	if (context.current_context != CONTEXT_SERVICE_CONFIG_STANDALONE)
+	if (context.current_context == CONTEXT_SERVICE_CONFIG_STANDALONE) {
+		free(context.serv->dbus_name);
+		context.serv->dbus_name = NULL;
+	} else
 		context_free_userptr_data();
 
 	context_actions[context.current_context].func_free();
@@ -478,9 +481,10 @@ static void action_on_cmd_callback(struct json_object *jobj)
 	else if (strcmp(key_engine_get_service, cmd_name) == 0) {
 		tmp = json_object_new_object();
 		array = json_object_new_array();
-		json_object_array_add(array, data);
+		json_object_array_add(array, json_object_get(data));
 		json_object_object_add(tmp, key_services, array);
 		__renderers_services(tmp);
+		json_object_put(tmp);
 
 	} else
 		print_info_in_footer(true, "Unknown command called");
@@ -531,7 +535,8 @@ static void action_on_signal(struct json_object *jobj)
 			got_removed = true;
 	}
 
-	if (context.current_context == CONTEXT_SERVICE_CONFIG) {
+	if (context.current_context == CONTEXT_SERVICE_CONFIG ||
+			context.current_context == CONTEXT_SERVICE_CONFIG_STANDALONE) {
 		if (context.serv->dbus_name == NULL)
 			return;
 
@@ -899,6 +904,9 @@ static void print_services_for_tech(void)
 {
 	struct json_object *cmd, *tmp;
 
+	if (!context.tech || !context.tech->dbus_name)
+		return;
+
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
 
@@ -918,6 +926,9 @@ static void print_services_for_tech(void)
 static void connect_to_service(void)
 {
 	struct json_object *cmd, *tmp;
+
+	if (!context.serv || !context.serv->dbus_name)
+		return;
 
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
@@ -945,6 +956,9 @@ static void disconnect_of_service(struct userptr_data *data)
 {
 	struct json_object *cmd, *tmp;
 
+	if (!data || !data->dbus_name)
+		return;
+
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
 
@@ -965,6 +979,9 @@ static void disconnect_of_service(struct userptr_data *data)
 static void toggle_power_tech(struct userptr_data *data)
 {
 	struct json_object *cmd, *tmp;
+
+	if (!data || !data->dbus_name)
+		return;
 
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
@@ -1002,6 +1019,9 @@ static void scan_tech(const char *tech_dbus_name)
 {
 	struct json_object *cmd, *tmp;
 
+	if (!tech_dbus_name)
+		return;
+
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
 
@@ -1024,6 +1044,9 @@ static void remove_service(struct userptr_data *data)
 {
 	struct json_object *cmd, *tmp;
 
+	if (!data || !data->dbus_name)
+		return;
+
 	cmd = json_object_new_object();
 	tmp = json_object_new_object();
 
@@ -1045,7 +1068,7 @@ static void get_service_settings(void)
 {
 	struct json_object *cmd, *tmp;
 
-	if (!context.serv->dbus_name)
+	if (!context.serv || !context.serv->dbus_name)
 		return;
 
 	cmd = json_object_new_object();
@@ -1164,6 +1187,9 @@ static void modify_service_config(void)
 	char *key_str;
 	const char *are_obj[] = { key_serv_ipv4_config, key_serv_ipv6_config,
 		key_serv_proxy_config };
+
+	if (!context.serv || !context.serv->dbus_name)
+		return;
 
 	for (i = 0; main_fields[i]; i++) {
 		if (!((unsigned)field_opts(main_fields[i]) & O_EDIT))
@@ -1391,6 +1417,7 @@ static void exec_action_context_services(int ch)
 				break;
 
 			context.serv->dbus_name = strdup(userptr->dbus_name);
+			__renderers_free_services();
 			get_service_settings();
 			break;
 	}

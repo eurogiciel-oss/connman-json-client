@@ -615,9 +615,7 @@ static DBusHandlerResult monitor_changed(DBusConnection *connection,
 	json_object_object_add(res, key_command_path,
 			json_object_new_string(path));
 	json_object_object_add(res, key_command_data, dbus_to_json(&iter));
-
 	json_object_object_add(res, key_signal, sig_name);
-	json_object_get(res);
 
 	commands_signal(res);
 

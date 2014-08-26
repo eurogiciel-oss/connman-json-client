@@ -788,7 +788,7 @@ static void react_to_sig_service(struct json_object *interface,
 
 	if (serv_dict && json_object_object_get_ex(serv_dict, key, NULL)) {
 		json_object_object_del(serv_dict, key);
-		json_object_object_add(serv_dict, key, val);
+		json_object_object_add(serv_dict, key, json_object_get(val));
 	}
 }
 
@@ -818,7 +818,7 @@ static void react_to_sig_technology(struct json_object *interface,
 
 	if (tech_dict && json_object_object_get_ex(tech_dict, key, NULL)) {
 		json_object_object_del(tech_dict, key);
-		json_object_object_add(tech_dict, key, val);
+		json_object_object_add(tech_dict, key, json_object_get(val));
 	}
 }
 
