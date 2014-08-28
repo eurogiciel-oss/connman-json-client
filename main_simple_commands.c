@@ -1,5 +1,7 @@
 /*
- *  connman-json-client
+ *  connman-ncurses
+ *
+ *  Copyright (C) 2014 Eurogiciel. All rights reserved.
  *
  *  This file is meant for testing.
  *

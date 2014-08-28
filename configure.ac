@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT(connman-json, 0.1)
+AC_INIT(connman-ncurses, 1.0)
 AC_CONFIG_SRCDIR([main.c])
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -60,7 +60,6 @@ PKG_CHECK_MODULES(DBUS, dbus-1 >= 1.4, dummy=yes,
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
-
 AC_CHECK_HEADER(ncurses/ncurses.h, [HAVE_NCURSES_H=1 CFLAGS="$CFLAGS -I/usr/include/ncurses"])
 AC_CHECK_LIB(ncurses, initscr, HAVE_LIBNCURSES=1)
 AC_CHECK_LIB(tinfo, cbreak, [LIBS="-ltinfo $LIBS"])
@@ -74,6 +73,5 @@ echo -e "Error: ncurses is required." exit 1])
 fi
 
 AC_CHECK_HEADERS([ assert.h config.h ctype.h errno.h poll.h regex.h signal.h stdarg.h stdbool.h stdio.h stdlib.h string.h sys/types.h unistd.h])
-
 
 AC_OUTPUT(Makefile)
