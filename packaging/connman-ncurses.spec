@@ -5,7 +5,7 @@ Release:        1
 License:        GPL-2.0
 Group:          Network & Connectivity/Connection Management
 Source:         %{name}-%{version}.tar.gz
-URL:            https://github.com/alan-mushi/connman-json-client
+URL:            https://github.com/eurogiciel-oss/connman-json-client
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  libjson-devel
