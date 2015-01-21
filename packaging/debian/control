@@ -1,0 +1,22 @@
+Source: connman-curses-git
+Maintainer: Javier López <m@javier.io>
+Section: net
+Priority: optional
+Build-Depends: debhelper  (>=9), libjson-c2, libjson-c-dev, autoconf (>=2.69), automake, libncurses5, libncurses5-dev, libdbus-1-dev, dh-exec (>= 0.12)
+
+Package: connman-curses-git
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: connman | connman-git
+Description: A ncurses UI for connman
+ This project aim to provide a simple ncurses interface to control ConnMan through dbus.
+ .
+ This package is an autobuild build after the git repository
+
+Package: connman-curses-git-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: connman-curses-git (=${binary:Version}), ${misc:Depends}
+Description: Debugging symbols for connman-curses-git
+ This package contains the debugging symbols for connman-curses-git

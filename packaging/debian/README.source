@@ -1,0 +1,13 @@
+Debian packaging for connman-json-client
+----------------------------------------
+
+Steps to build this package:
+
+```
+$ git clone --dept=1 https://github.com/eurogiciel-oss/connman-json-client
+$ tar cvf - connman-json-client | gzip > connman-curses-git_999999999999+git.orig.tar.gz
+$ cd connman-json-client
+$ cp -r packaging/debian .
+$ sudo mk-build-deps -i
+$ debuild -b -us -uc
+```

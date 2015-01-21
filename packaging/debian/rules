@@ -1,0 +1,29 @@
+#!/usr/bin/make -f
+
+DEB_VERSION:=$(shell dpkg-parsechangelog -n1 | sed -n '/^Version: /s///p')
+#999999999999+git
+DEB_UPSTREAM_VERSION:=$(shell DEB_VERSION=${DEB_VERSION}; echo $${DEB_VERSION%-*})
+#999999999999
+DEB_UPSTREAM_VERSION:=$(shell DEB_UPSTREAM_VERSION=${DEB_UPSTREAM_VERSION}; echo $${DEB_UPSTREAM_VERSION\#*:})
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+%:
+	dh $@
+
+override_dh_auto_configure:
+	autoreconf -i -f
+	./configure --disable-optimization --enable-debug
+
+override_dh_strip:
+	dh_strip -pconnman-curses-git --dbg-package=connman-curses-git-dbg
+
+get-orig-source:
+	rm -rf debian/tmp; mkdir debian/tmp
+	cd debian/tmp; git clone --depth=1 https://github.com/eurogiciel-oss/connman-json-client
+	cd debian/tmp; rm -rf connman-json-client/.git;
+	cd debian/tmp; mv connman-json-client connman-curses-git-${DEB_UPSTREAM_VERSION}
+	cd debian/tmp; tar cvJf connman-curses-git_${DEB_UPSTREAM_VERSION}.orig.tar.xz connman-curses-git-${DEB_UPSTREAM_VERSION}
+	mv debian/tmp/connman-curses-git_${DEB_UPSTREAM_VERSION}.orig.tar.xz .
+	mv debian/tmp/connman-curses-git-${DEB_UPSTREAM_VERSION} .
+	rm -rf debian/tmp
