@@ -1,0 +1,2 @@
+#!/usr/bin/dh-exec
+connman_ncurses => /usr/bin/connman-curses
