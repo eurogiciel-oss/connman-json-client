@@ -912,7 +912,7 @@ static void react_to_sig_manager(struct json_object *interface,
 					0));
 		json_object_object_del(state, tmp_str);
 		json_object_object_add(state, tmp_str,
-				json_object_array_get_idx(data, 1));
+				json_object_get(json_object_array_get_idx(data, 1)));
 
 	} else if (strcmp(sig_name, key_sig_tech_added) == 0) {
 		json_object_array_add(technologies, json_object_get(data));
