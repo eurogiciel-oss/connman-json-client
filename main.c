@@ -1275,6 +1275,10 @@ static void exec_action_context_home(int ch)
 		case KEY_ENTER:
 		case 10:
 			item = current_item(main_menu);
+
+			if (!item) // No technologies available but the user presses Enter
+				break;
+
 			exec_action(item_userptr(item));
 			break;
 	}
@@ -1398,6 +1402,10 @@ static void exec_action_context_services(int ch)
 		case KEY_ENTER:
 		case 10:
 			item = current_item(main_menu);
+
+			if (!item) // No services available but the user presses Enter
+				break;
+
 			exec_action(item_userptr(item));
 			print_info_in_footer(false, "Connecting...");
 			break;
