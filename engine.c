@@ -826,7 +826,8 @@ static void react_to_sig_technology(struct json_object *interface,
 
 /*
  * This function replace the settings of a service if it already exists, add it
- * if it doesn't in services global variable.
+ * if it doesn't in services global variable. If serv_dict is NULL, the service
+ * is removed.
  * @param serv_name the dbus service name
  * @param serv_dict the settings of the service
  */
@@ -841,16 +842,30 @@ static void replace_service_in_services(const char *serv_name,
 
 	for (i = 0; i < len && !found; i++) {
 		sub_array = json_object_array_get_idx(services, i);
+
+		if (sub_array == NULL)
+			continue;
+
 		tmp = json_object_array_get_idx(sub_array, 0);
 
-		if (strcmp(json_object_get_string(tmp), serv_name) == 0) {
-			json_object_array_put_idx(sub_array, 1,
-					json_object_get(serv_dict));
+		if (tmp && strcmp(json_object_get_string(tmp), serv_name) == 0) {
+			if (serv_dict)
+				json_object_array_put_idx(sub_array, 1,
+						json_object_get(serv_dict));
+			else {
+				/*
+				 * There isn't a function to remove something
+				 * from an array so we set the service as a
+				 * null pointer.
+				 */
+				json_object_array_put_idx(services, i, NULL);
+			}
+
 			found = true;
 		}
 	}
 
-	if (!found) {
+	if (!found && serv_dict) {
 		tmp = json_object_new_array();
 		json_object_array_add(tmp, json_object_new_string(serv_name));
 		json_object_array_add(tmp, json_object_get(serv_dict));
@@ -868,7 +883,7 @@ static void react_to_sig_manager(struct json_object *interface,
 {
 	const char *tmp_str;
 	struct json_object *serv_to_del, *serv_to_add, *sub_array, *serv_dict,
-			   *tmp, *tmp_array;
+			   *tmp, *tmp_array, *better_services, *elem;
 	int i, len;
 
 	if (strcmp(sig_name, key_sig_serv_changed) == 0) {
@@ -879,9 +894,24 @@ static void react_to_sig_manager(struct json_object *interface,
 		for (i = 0; i < len; i++) {
 			tmp_str = json_object_get_string(
 					json_object_array_get_idx(serv_to_del, i));
+			replace_service_in_services(tmp_str, NULL);
+		}
 
-			if (json_object_object_get_ex(services, tmp_str, NULL))
-				json_object_object_del(services, tmp_str);
+		if (len > 0) {
+			// We construct a services array without NULL entries
+			better_services = json_object_new_array();
+
+			for (i = 0; i < json_object_array_length(services); i++) {
+				elem = json_object_array_get_idx(services, i);
+
+				if (elem != NULL) {
+					// No need to increment the refcount here,
+					// we just need a copy of the pointers.
+					json_object_array_add(better_services, elem);
+				}
+			}
+
+			services = better_services;
 		}
 
 		// add new services
