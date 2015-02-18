@@ -572,17 +572,22 @@ static void renderers_services_ethernet(struct json_object *jobj)
 {
 	int i;
 	// Name  State
-	char *desc_base = "%c %-33s%-17s", *desc, favorite_char;
-	const char *name_str, *state_str, *dbus_name_str;
+	char *desc_base = "%c %-9s %-24s%-17s", *desc, favorite_char;
+	const char *interface_str, *name_str, *state_str, *dbus_name_str;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "  %-33s%-17s", key_serv_name, key_serv_state);
+	mvwprintw(win_body, 3, 2, "  %-9s %-24s%-17s", key_serv_eth_interface,
+			key_serv_name, key_serv_state);
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
 		serv_name = json_object_array_get_idx(sub_array, 0);
 		serv_dict = json_object_array_get_idx(sub_array, 1);
+
+		json_object_object_get_ex(serv_dict, key_serv_ethernet, &tmp);
+		json_object_object_get_ex(tmp, key_serv_eth_interface, &tmp);
+		interface_str = json_object_get_string(tmp);
 
 		json_object_object_get_ex(serv_dict, key_serv_name, &tmp);
 		name_str = json_object_get_string(tmp);
@@ -599,7 +604,7 @@ static void renderers_services_ethernet(struct json_object *jobj)
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
 		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base,
-				favorite_char, name_str, state_str);
+				favorite_char, interface_str, name_str, state_str);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 
 		dbus_name_str = json_object_get_string(serv_name);
@@ -622,33 +627,49 @@ static void renderers_services_ethernet(struct json_object *jobj)
 static void renderers_services_wifi(struct json_object *jobj)
 {
 	int i;
-	// (favorite) eSSID  State  Security  Signal strengh
-	char *desc_base = "%c %-33s%-17s%-19s%u%%", *desc, favorite_char;
-	const char *essid_str, *state_str, *security_str,
-	      *serv_name_str;
+	// (favorite) Interface eSSID  State  Security  Signal
+	char *desc_base = "%c %-9s %-29s%-17s%-13s%u%%", *desc, favorite_char,
+	     *essid_str, *security_str;
+	const char *interface_str, *state_str, *serv_name_str;
 	uint8_t signal_strength;
 	struct json_object *sub_array, *serv_name, *serv_dict, *tmp;
 	struct userptr_data *data;
 
-	mvwprintw(win_body, 3, 2, "  %-33s%-17s%-10s%15s", "eSSID",
-			key_serv_state, key_serv_security, "Signal Strength");
+	mvwprintw(win_body, 3, 2, "  %-9s %-29s%-17s%-10s%5s", key_serv_eth_interface,
+			"eSSID", key_serv_state, key_serv_security,
+			"Signal");
 
 	for (i = 0; i < nb_items; i++) {
 		sub_array = json_object_array_get_idx(jobj, i);
 		serv_name = json_object_array_get_idx(sub_array, 0);
 		serv_dict = json_object_array_get_idx(sub_array, 1);
 
+		json_object_object_get_ex(serv_dict, key_serv_ethernet, &tmp);
+		json_object_object_get_ex(tmp, key_serv_eth_interface, &tmp);
+		assert(tmp != NULL);
+		interface_str = json_object_get_string(tmp);
+
 		json_object_object_get_ex(serv_dict, key_serv_name, &tmp);
 
 		// hidden wifi
 		if (tmp)
-			essid_str = json_object_get_string(tmp);
+			essid_str = (char *) json_object_get_string(tmp);
 		else
 			essid_str = "[hidden]";
 
+		if (strlen(essid_str) > 28) {
+			essid_str[25] = '.';
+			essid_str[26] = '.';
+			essid_str[27] = '.';
+			essid_str[28] = ' ';
+			essid_str[29] = '\0';
+		}
+
 		json_object_object_get_ex(serv_dict, key_serv_security, &tmp);
 		assert(tmp != NULL);
-		security_str = json_object_get_string(tmp);
+		security_str = (char *) json_object_get_string(tmp);
+		security_str += 2; // removes the two first char '[ '
+		security_str[strlen(security_str)-2] = '\0'; // removes the two last char ' ]'
 
 		json_object_object_get_ex(serv_dict, key_serv_strength, &tmp);
 		assert(tmp != NULL);
@@ -667,8 +688,8 @@ static void renderers_services_wifi(struct json_object *jobj)
 		desc = malloc(RENDERERS_STRING_MAX_LEN);
 		assert(desc != NULL);
 		snprintf(desc, RENDERERS_STRING_MAX_LEN-1, desc_base,
-				favorite_char, essid_str, state_str,
-				security_str, signal_strength);
+				favorite_char, interface_str, essid_str,
+				state_str, security_str, signal_strength);
 		desc[RENDERERS_STRING_MAX_LEN-1] = '\0';
 
 		serv_name_str = json_object_get_string(serv_name);
