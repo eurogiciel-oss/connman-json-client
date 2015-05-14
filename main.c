@@ -422,6 +422,12 @@ void repos_cursor(void)
  */
 static void exec_action(struct userptr_data *data)
 {
+
+	if (!data) {
+		exec_refresh();
+		return;
+	}
+
 	switch (context.current_context) {
 		case CONTEXT_SERVICES:
 			context.serv->dbus_name = strdup(data->dbus_name);
@@ -651,7 +657,7 @@ static void agent_input_popup(const char *serv_name, struct json_object *data)
 	char req_char;
 	char buf[60];
 	// Nom du champ, type, alternates, requirement
-	char *fmt = "%s (%s, %s): %c";
+	char *fmt = "%s (%s, %s): %c", *alt_str;
 	const char *value_str;
 	// Arguments as in connman/doc/agent-api.txt
 	struct json_object *type, *req, *alt, *value;
@@ -684,9 +690,15 @@ static void agent_input_popup(const char *serv_name, struct json_object *data)
 		else
 			req_char = ' ';
 
-		snprintf(buf, 60, fmt, key, json_object_get_string(type),
-				alt == NULL ? "no alt" : json_object_get_string(alt),
-				req_char);
+		if (!alt)
+			alt_str = "no alt";
+		else {
+			alt_str = (char *) json_object_get_string(alt);
+			alt_str += sizeof(char) * 2; // removes leading '[ '
+			alt_str[strlen(alt_str)-2] = '\0'; // removes trailing ' ]'
+		}
+
+		snprintf(buf, 60, fmt, key, json_object_get_string(type), alt_str, req_char);
 		buf[59] = '\0';
 		agent_request_input_fields[i] = strndup(buf, 60);
 		i++;
