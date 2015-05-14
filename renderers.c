@@ -507,7 +507,7 @@ static void renderers_service_config(struct json_object *serv_array)
 			json_object_array_get_idx(serv_array, 0));
 
 	longest_key_len = 25 + 4; // len("Nameservers.Configuration") + padding
-	main_fields = malloc(sizeof(ITEM *) * max_nb_fields); // 113 = #fields + #labels + 1
+	main_fields = malloc(sizeof(FIELD *) * max_nb_fields); // 113 = #fields + #labels + 1
 	i = 0;
 
 	str_field[0] = '\0';
