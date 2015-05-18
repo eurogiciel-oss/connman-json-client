@@ -152,11 +152,24 @@ void popup_new(int rows, int cols, int posy, int posx, char **requests,
 	popup_fields[i] = NULL;
 	popup_form = new_form(popup_fields);
 	assert(popup_form != NULL);
-	win_form = derwin(win_body, rows-6, cols-2, 2, 1);
-	box(win_form, 0, 0);
+	win_form = derwin(win_body, rows-6, cols-2, 1, 1);
 	assert(popup_form != NULL && win_form != NULL);
-	set_form_win(popup_form, win_form);
-	inner = derwin(win_form, popup_form->rows+1, popup_form->cols+1, 1, 1);
+	assert(set_form_win(popup_form, win_form) == E_OK);
+
+	int diff_rows = popup_form->cols - win_form->_maxx-2;
+
+	/*
+	 * There isn't enough rows for the form so we resize win_body and
+	 * win_form to fit the form.
+	 * This resize isn't needed for the lines (as there is always fery few
+	 * of them).
+	 */
+	if (diff_rows > 0) {
+		wresize(win_body, win_body->_maxy, win_body->_maxx + diff_rows);
+		wresize(win_form, win_form->_maxy, win_form->_maxx - 2 + diff_rows);
+	}
+
+	inner = derwin(win_form, win_form->_maxy-2, win_form->_maxx, 2, 0);
 	assert(inner != NULL);
 	set_form_sub(popup_form, inner);
 
