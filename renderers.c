@@ -507,7 +507,7 @@ static void renderers_service_config(struct json_object *serv_array)
 			json_object_array_get_idx(serv_array, 0));
 
 	longest_key_len = 25 + 4; // len("Nameservers.Configuration") + padding
-	main_fields = malloc(sizeof(ITEM *) * max_nb_fields); // 113 = #fields + #labels + 1
+	main_fields = malloc(sizeof(FIELD *) * max_nb_fields); // 113 = #fields + #labels + 1
 	i = 0;
 
 	str_field[0] = '\0';
@@ -763,6 +763,7 @@ void __renderers_free_services(void)
 {
 	int i;
 	struct userptr_data *data;
+	const char *item_name_desc = NULL;
 
 	if (main_menu == NULL)
 		return;
@@ -774,6 +775,17 @@ void __renderers_free_services(void)
 		free((void *) data->dbus_name);
 		free((void *) data->pretty_name);
 		free(data);
+
+		item_name_desc = item_name(main_items[i]);
+
+		if (item_name_desc != NULL)
+			free((void *) item_name_desc);
+
+		item_name_desc = item_description(main_items[i]);
+
+		if (item_name_desc != NULL)
+			free((void *) item_name_desc);
+
 		free_item(main_items[i]);
 	}
 

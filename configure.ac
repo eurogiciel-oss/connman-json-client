@@ -41,6 +41,14 @@ AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
 	fi
 ])
 
+AC_ARG_ENABLE(asan, AC_HELP_STRING([--enable-asan],
+			[enable Address Sanitizer]), [
+	if (test "${enableval}" = "yes" &&
+				test "${ac_cv_prog_cc_g}" = "yes"); then
+		CFLAGS="$CFLAGS -g -fsanitize=address -fno-omit-frame-pointer"
+	fi
+])
+
 AC_CONFIG_HEADERS([config.h:config.h.in])
 
 PKG_CHECK_MODULES(JSON, [json-c],,
