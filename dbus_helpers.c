@@ -49,6 +49,7 @@ static void dbus_method_reply(DBusPendingCall *call, void *user_data)
 	DBusMessageIter iter;
 
 	reply = dbus_pending_call_steal_reply(call);
+	dbus_pending_call_unref(call);
 	if (dbus_message_get_type(reply) == DBUS_MESSAGE_TYPE_ERROR) {
 		DBusError err;
 
