@@ -12,7 +12,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0;md5=801f80980d171dd6425
 
 SRC_URI = "git://github.com/eurogiciel-oss/connman-json-client.git;rev=0a83cfb469ac567cea6c825eb0c129aeed8257ea"
 
-inherit autotools
+inherit autotools pkgconfig
 
 EXTRA_AUTORECONF += " -i"
 EXTRA_OECONF += " --disable-optimization --enable-debug"
