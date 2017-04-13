@@ -2,7 +2,8 @@ Source: connman-curses-git
 Maintainer: Javier López <m@javier.io>
 Section: net
 Priority: optional
-Build-Depends: debhelper  (>=9), libjson-c2, libjson-c-dev, autoconf (>=2.69), automake, libncurses5, libncurses5-dev, libdbus-1-dev, dh-exec (>= 0.12)
+Build-Depends: debhelper  (>=9), libjson-c-dev, autoconf (>=2.69), automake, libncurses5, libncurses5-dev, libdbus-1-dev, dh-exec (>= 0.12)
+Standards-Version: 3.9.0
 
 Package: connman-curses-git
 Architecture: any
